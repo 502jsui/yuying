@@ -12,37 +12,38 @@ public class GameManager : MonoBehaviour
     [HideInInspector] public ResidentData[] residents;
     [HideInInspector] public ItemData[] items;
 
-    void Awake()
+    private void Awake()
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
         InitData();
     }
 
-    void InitData()
+    private void InitData()
     {
         residents = new ResidentData[residentViews.Length];
         for (int i = 0; i < residentViews.Length; i++)
         {
-            var v = residentViews[i];
-            var d = CreateResidentData(v.id);
-            residents[i] = d;
-            v.data = d;
+            ResidentView view = residentViews[i];
+            ResidentData data = CreateResidentData(view.id);
+            residents[i] = data;
+            view.data = data;
+            view.RefreshVisual();
         }
 
         items = new ItemData[itemViews.Length];
         for (int i = 0; i < itemViews.Length; i++)
         {
-            var v = itemViews[i];
-            var d = new ItemData(v.itemId, v.owner);
-            items[i] = d;
-            v.data = d;
+            ItemView view = itemViews[i];
+            ItemData data = new ItemData(view.itemId, view.owner);
+            items[i] = data;
+            view.data = data;
         }
 
         Debug.Log($"初始化 {residents.Length} 个住户，{items.Length} 件物品");
     }
 
-    ResidentData CreateResidentData(ResidentId id)
+    private ResidentData CreateResidentData(ResidentId id)
     {
         switch (id)
         {
