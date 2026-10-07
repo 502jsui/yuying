@@ -14,6 +14,16 @@ public static class YuyinSceneBuilder
     private const string FirstFloorPath = SceneRoot + "/FirstFloor.unity";
     private const string BackyardPath = SceneRoot + "/Backyard.unity";
 
+    // 一屏尺寸：16:9 + 正交尺寸 5.4 → 19.2 × 10.8。
+    // 与 SceneCameraFollow2D 的取景公式一致，保证“场景和屏幕等大”。
+    private const float SceneWidth = 19.2f;
+    private const float SceneHeight = 10.8f;
+    private const float HalfSceneWidth = SceneWidth * 0.5f;
+    private const float HalfSceneHeight = SceneHeight * 0.5f;
+    private const float PlayerMinX = -9f;
+    private const float PlayerMaxX = 9f;
+    private const float PlayerY = -2.4f;
+
     private static Sprite white;
 
     [MenuItem("Tools/余音/重建基础场景")]
@@ -53,26 +63,26 @@ public static class YuyinSceneBuilder
         Transform gameplay = CreateRoot("Gameplay", world.transform).transform;
         Transform cameraRoot = CreateRoot("Camera", world.transform).transform;
 
-        CreateRect("Backdrop", new Vector3(0f, 1.2f, 0f), new Vector2(46f, 12f), new Color(0.055f, 0.075f, 0.105f), -50, environment);
-        CreateRect("Upper Wall", new Vector3(0f, 4.0f, 0f), new Vector2(46f, 1.5f), new Color(0.10f, 0.13f, 0.17f), -40, environment);
-        CreateRect("Lower Wall", new Vector3(0f, -2.8f, 0f), new Vector2(46f, 2.4f), new Color(0.11f, 0.14f, 0.17f), -40, environment);
-        CreateRect("Ceiling", new Vector3(0f, 5.6f, 0f), new Vector2(46f, 1.2f), new Color(0.06f, 0.075f, 0.095f), -35, environment);
-        CreateRect("Floor", new Vector3(0f, -4.35f, 0f), new Vector2(46f, 2.0f), new Color(0.22f, 0.21f, 0.20f), -20, environment);
-        CreateRect("Floor Line", new Vector3(0f, -3.35f, 0f), new Vector2(46f, 0.12f), new Color(0.35f, 0.36f, 0.35f), -15, environment);
+        CreateRect("Backdrop", new Vector3(0f, 0f, 0f), new Vector2(SceneWidth, SceneHeight), new Color(0.055f, 0.075f, 0.105f), -50, environment);
+        CreateRect("Upper Wall", new Vector3(0f, 3.4f, 0f), new Vector2(SceneWidth, 1.5f), new Color(0.10f, 0.13f, 0.17f), -40, environment);
+        CreateRect("Lower Wall", new Vector3(0f, -2.8f, 0f), new Vector2(SceneWidth, 2.4f), new Color(0.11f, 0.14f, 0.17f), -40, environment);
+        CreateRect("Ceiling", new Vector3(0f, 4.9f, 0f), new Vector2(SceneWidth, 1.2f), new Color(0.06f, 0.075f, 0.095f), -35, environment);
+        CreateRect("Floor", new Vector3(0f, -4.35f, 0f), new Vector2(SceneWidth, 2.0f), new Color(0.22f, 0.21f, 0.20f), -20, environment);
+        CreateRect("Floor Line", new Vector3(0f, -3.35f, 0f), new Vector2(SceneWidth, 0.12f), new Color(0.35f, 0.36f, 0.35f), -15, environment);
 
-        for (int x = -22; x <= 22; x += 4) CreateRect("Wall Seam", new Vector3(x, 1.2f, 0f), new Vector2(0.06f, 7.2f), new Color(0.20f, 0.23f, 0.26f, 0.65f), -10, environment);
+        for (int x = -8; x <= 8; x += 4) CreateRect("Wall Seam", new Vector3(x, 0f, 0f), new Vector2(0.06f, 7.2f), new Color(0.20f, 0.23f, 0.26f, 0.65f), -10, environment);
 
-        CreateDoor(environment, "Door_Grandma", new Vector3(-12f, 0.2f, 0f), new Color(0.64f, 0.45f, 0.24f));
+        CreateDoor(environment, "Door_Grandma", new Vector3(-6f, 0.2f, 0f), new Color(0.64f, 0.45f, 0.24f));
         CreateDoor(environment, "Door_Aunt", new Vector3(0f, 0.2f, 0f), new Color(0.22f, 0.43f, 0.47f));
-        CreateDoor(environment, "Door_Girl", new Vector3(12f, 0.2f, 0f), new Color(0.54f, 0.29f, 0.38f));
+        CreateDoor(environment, "Door_Girl", new Vector3(6f, 0.2f, 0f), new Color(0.54f, 0.29f, 0.38f));
 
-        GameObject player = CreatePlayer(gameplay, new Vector3(-17f, -2.4f, 0f), -19f, 18f, -2.4f);
-        CreateCamera(cameraRoot, player.transform, -16.5f, 16.5f, 0f);
+        GameObject player = CreatePlayer(gameplay, new Vector3(-7.5f, PlayerY, 0f), PlayerMinX, PlayerMaxX, PlayerY);
+        CreateCamera(cameraRoot, -HalfSceneWidth, HalfSceneWidth, -HalfSceneHeight, HalfSceneHeight);
 
-        List<ResidentView> residents = new List<ResidentView>();
+        List<ResidentView> residents = CreateNpcs(gameplay, AreaId.FirstFloor);
 
         CreateGameManager(gameplay, player.GetComponent<PlayerController>(), residents);
-        CreatePortal(environment, "Portal_To_Backyard", player.transform, "Backyard", new Vector3(18.2f, -2.4f, 0f), new Color(0.32f, 0.76f, 0.60f, 0.85f), "FirstFloor_Right", "Backyard_Left", -1f);
+        CreatePortal(environment, "Portal_To_Backyard", player.transform, "Backyard", new Vector3(8.6f, PlayerY, 0f), new Color(0.32f, 0.76f, 0.60f, 0.85f), "FirstFloor_Right", "Backyard_Left", -1f);
 
 
         EditorSceneManager.MarkSceneDirty(scene);
@@ -87,23 +97,23 @@ public static class YuyinSceneBuilder
         Transform gameplay = CreateRoot("Gameplay", world.transform).transform;
         Transform cameraRoot = CreateRoot("Camera", world.transform).transform;
 
-        CreateRect("Sky", new Vector3(0f, 1.0f, 0f), new Vector2(46f, 12f), new Color(0.06f, 0.10f, 0.15f), -50, environment);
-        CreateRect("Ground", new Vector3(0f, -4.0f, 0f), new Vector2(46f, 3.2f), new Color(0.16f, 0.27f, 0.21f), -30, environment);
-        CreateRect("Path", new Vector3(0f, -3.45f, 0f), new Vector2(46f, 1.2f), new Color(0.28f, 0.33f, 0.27f), -25, environment);
-        CreateRect("Back Fence", new Vector3(0f, -1.6f, 0f), new Vector2(46f, 0.18f), new Color(0.36f, 0.28f, 0.20f), -20, environment);
+        CreateRect("Sky", new Vector3(0f, 0f, 0f), new Vector2(SceneWidth, SceneHeight), new Color(0.06f, 0.10f, 0.15f), -50, environment);
+        CreateRect("Ground", new Vector3(0f, -3.8f, 0f), new Vector2(SceneWidth, 3.2f), new Color(0.16f, 0.27f, 0.21f), -30, environment);
+        CreateRect("Path", new Vector3(0f, -3.45f, 0f), new Vector2(SceneWidth, 1.2f), new Color(0.28f, 0.33f, 0.27f), -25, environment);
+        CreateRect("Back Fence", new Vector3(0f, -1.6f, 0f), new Vector2(SceneWidth, 0.18f), new Color(0.36f, 0.28f, 0.20f), -20, environment);
 
-        for (int x = -20; x <= 20; x += 4)
+        for (int x = -8; x <= 8; x += 4)
         {
             CreateRect("Fence Post", new Vector3(x, -1.95f, 0f), new Vector2(0.18f, 1.2f), new Color(0.30f, 0.22f, 0.16f), -19, environment);
         }
 
-        GameObject player = CreatePlayer(gameplay, new Vector3(-16f, -2.4f, 0f), -18.5f, 17.5f, -2.4f);
-        CreateCamera(cameraRoot, player.transform, -15.5f, 15.5f, 0f);
+        GameObject player = CreatePlayer(gameplay, new Vector3(-7.5f, PlayerY, 0f), PlayerMinX, PlayerMaxX, PlayerY);
+        CreateCamera(cameraRoot, -HalfSceneWidth, HalfSceneWidth, -HalfSceneHeight, HalfSceneHeight);
 
-        List<ResidentView> residents = new List<ResidentView>();
+        List<ResidentView> residents = CreateNpcs(gameplay, AreaId.Backyard);
 
         CreateGameManager(gameplay, player.GetComponent<PlayerController>(), residents);
-        CreatePortal(environment, "Portal_To_FirstFloor", player.transform, "FirstFloor", new Vector3(-18f, -2.4f, 0f), new Color(0.96f, 0.72f, 0.34f, 0.85f), "Backyard_Left", "FirstFloor_Right", 1f);
+        CreatePortal(environment, "Portal_To_FirstFloor", player.transform, "FirstFloor", new Vector3(-8.6f, PlayerY, 0f), new Color(0.96f, 0.72f, 0.34f, 0.85f), "Backyard_Left", "FirstFloor_Right", 1f);
 
         CreateRainSystem(environment, 1f, true, 0.14f);
         EditorSceneManager.MarkSceneDirty(scene);
@@ -136,6 +146,24 @@ public static class YuyinSceneBuilder
         return player;
     }
 
+    /// <summary>按区域生成住户占位（长条形），复用 YuyinNpcSceneTool 的摆放参数。</summary>
+    private static List<ResidentView> CreateNpcs(Transform parent, AreaId area)
+    {
+        List<ResidentView> residents = new List<ResidentView>();
+        GameObject root = CreateRoot("NPCs", parent);
+        List<NpcPlacementSpec> specs = YuyinNpcSceneTool.GetSpecs(area);
+
+        for (int i = 0; i < specs.Count; i++)
+        {
+            if (specs[i].id == ResidentId.Mother) continue; // 母亲本次不做
+
+            ResidentView view = YuyinNpcSceneTool.SpawnPlaceholder(root.transform, specs[i]);
+            if (view != null) residents.Add(view);
+        }
+
+        return residents;
+    }
+
     private static ResidentView CreateResident(Transform parent, string name, string prefabPath, Vector3 position, float scale, float patrolMinX, float patrolMaxX, float speed)
     {
         GameObject prefab = LoadRequired<GameObject>(prefabPath);
@@ -157,15 +185,15 @@ public static class YuyinSceneBuilder
         return view;
     }
 
-    private static void CreateCamera(Transform parent, Transform target, float minX, float maxX, float fixedY)
+    private static void CreateCamera(Transform parent, float minX, float maxX, float minY, float maxY)
     {
         GameObject cameraObject = CreateRoot("Main Camera", parent);
         cameraObject.tag = "MainCamera";
-        cameraObject.transform.position = new Vector3(Mathf.Clamp(target.position.x, minX, maxX), fixedY, -10f);
+        cameraObject.transform.position = new Vector3((minX + maxX) * 0.5f, (minY + maxY) * 0.5f, -10f);
 
         Camera camera = cameraObject.AddComponent<Camera>();
         camera.orthographic = true;
-        camera.orthographicSize = 5.4f;
+        camera.orthographicSize = HalfSceneHeight;
         camera.clearFlags = CameraClearFlags.SolidColor;
         camera.backgroundColor = new Color(0.025f, 0.04f, 0.065f);
         camera.nearClipPlane = 0.1f;
@@ -173,11 +201,12 @@ public static class YuyinSceneBuilder
         camera.allowHDR = false;
         camera.allowMSAA = false;
 
-        SceneCameraFollow2D follow = cameraObject.AddComponent<SceneCameraFollow2D>();
-        follow.target = target;
-        follow.minX = minX;
-        follow.maxX = maxX;
-        follow.fixedY = fixedY;
+        SceneCameraFollow2D framing = cameraObject.AddComponent<SceneCameraFollow2D>();
+        framing.sceneMinX = minX;
+        framing.sceneMaxX = maxX;
+        framing.sceneMinY = minY;
+        framing.sceneMaxY = maxY;
+        framing.ApplyFraming();
         cameraObject.AddComponent<AudioListener>();
     }
 
@@ -196,8 +225,9 @@ public static class YuyinSceneBuilder
     {
         GameObject root = CreateRoot("Rain", parent);
         RainController rain = root.AddComponent<RainController>();
-        rain.width = 60f;
-        rain.height = 14f;
+        // 运行时 RainController 还会按相机可视范围再放大一次，这里只是兜底值。
+        rain.width = SceneWidth + 6f;
+        rain.height = SceneHeight + 6f;
         rain.groundY = -3.4f;
         rain.intensity = intensity;
         rain.lightningEnabled = lightningEnabled;

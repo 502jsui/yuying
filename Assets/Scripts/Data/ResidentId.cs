@@ -2,6 +2,6 @@ public enum ResidentId
 {
     Mother,
     Grandma,
-    Aunt,
+    Uncle,
     Girl
 }

@@ -14,6 +14,11 @@ public class RainController : MonoBehaviour
     [Range(0f, 1.5f)] public float intensity = 1f;
     public float backgroundRate = 200f;
     public float foregroundRate = 110f;
+
+    [Header("覆盖范围")]
+    [Tooltip("雨场在相机可视范围外再往外扩多少世界单位，保证屏幕边缘也被雨覆盖。")]
+    public float coverMargin = 3f;
+
     public float backgroundSpeed = 22f;
     public float foregroundSpeed = 32f;
     public float windSpeed = 8.0f;
@@ -47,6 +52,9 @@ public class RainController : MonoBehaviour
     private SpriteRenderer lightningOverlay;
     private Coroutine rippleRoutine;
     private Coroutine lightningRoutine;
+    private int backgroundStreakCount = 200;
+    private int foregroundStreakCount = 110;
+    private const float BaseViewWidth = 19.2f;
 
     public bool IsBuilt { get { return built; } }
     public RainStreakField2D BackgroundRain { get { return backgroundRain; } }
@@ -90,6 +98,9 @@ public class RainController : MonoBehaviour
         if (built) return;
         built = true;
 
+        // 先按当前相机可视范围把雨场放大到覆盖整个屏幕（含边缘）。
+        FitFieldToCamera();
+
         whiteSprite = Sprite.Create(Texture2D.whiteTexture, new Rect(0f, 0f, 1f, 1f), new Vector2(0.5f, 0.5f), 1f);
         ringTexture = CreateRingTexture(32);
         ringSprite = Sprite.Create(ringTexture, new Rect(0f, 0f, ringTexture.width, ringTexture.height), new Vector2(0.5f, 0.5f), 32f);
@@ -98,12 +109,57 @@ public class RainController : MonoBehaviour
         particleMaterial = new Material(spriteShader);
         particleMaterial.mainTexture = Texture2D.whiteTexture;
 
-        backgroundRain = CreateStreakLayer("Rain_Background", 200, new Vector2(5.6f, -22f), 0.018f, 0.45f, new Color(rainColor.r, rainColor.g, rainColor.b, rainColor.a * 0.75f), -12);
-        foregroundRain = CreateStreakLayer("Rain_Foreground", 110, new Vector2(8f, -32f), 0.028f, 0.65f, rainColor, 30);
+        backgroundRain = CreateStreakLayer("Rain_Background", backgroundStreakCount, new Vector2(5.6f, -22f), 0.018f, 0.45f, new Color(rainColor.r, rainColor.g, rainColor.b, rainColor.a * 0.75f), -12);
+        foregroundRain = CreateStreakLayer("Rain_Foreground", foregroundStreakCount, new Vector2(8f, -32f), 0.028f, 0.65f, rainColor, 30);
         splashRain = CreateSplashLayer();
 
         CreateGroundWetness();
         CreateCameraOverlays();
+    }
+
+    /// <summary>
+    /// 按相机可视范围放大雨场，保证任意宽高比下整个屏幕都有雨。
+    /// 找不到相机时退回场景里配的 width / height。
+    /// </summary>
+    private void FitFieldToCamera()
+    {
+        Camera camera = Camera.main;
+        if (camera == null) camera = FindObjectOfType<Camera>();
+        if (camera == null) return;
+
+        // 优先用场景矩形（SceneCameraFollow2D 上的范围），它不受执行顺序影响；
+        // 再和相机实际可视范围取较大值，保证宽屏时屏幕两边也有雨。
+        float sceneHalfWidth = 0f;
+        float sceneHalfHeight = 0f;
+        Vector3 center = camera.transform.position;
+
+        SceneCameraFollow2D framing = camera.GetComponent<SceneCameraFollow2D>();
+        if (framing != null)
+        {
+            sceneHalfWidth = framing.SceneWidth * 0.5f;
+            sceneHalfHeight = framing.SceneHeight * 0.5f;
+            center = new Vector3(
+                (framing.sceneMinX + framing.sceneMaxX) * 0.5f,
+                (framing.sceneMinY + framing.sceneMaxY) * 0.5f,
+                transform.position.z);
+        }
+
+        float cameraHalfHeight = camera.orthographic ? camera.orthographicSize : sceneHalfHeight;
+        float cameraHalfWidth = camera.orthographic
+            ? cameraHalfHeight * Mathf.Max(0.1f, camera.aspect)
+            : sceneHalfWidth;
+
+        float halfWidth = Mathf.Max(sceneHalfWidth, cameraHalfWidth);
+        float halfHeight = Mathf.Max(sceneHalfHeight, cameraHalfHeight);
+
+        transform.position = new Vector3(center.x, center.y, transform.position.z);
+        width = halfWidth * 2f + coverMargin * 2f;
+        height = halfHeight * 2f + coverMargin * 2f;
+
+        // 屏幕越宽，雨丝数量同比例增加，保持密度一致。
+        float widthScale = Mathf.Clamp(width / Mathf.Max(1f, BaseViewWidth), 1f, 3f);
+        backgroundStreakCount = Mathf.Max(1, Mathf.RoundToInt(backgroundRate * widthScale));
+        foregroundStreakCount = Mathf.Max(1, Mathf.RoundToInt(foregroundRate * widthScale));
     }
 
     private RainStreakField2D CreateStreakLayer(string name, int count, Vector2 velocity, float streakWidth, float streakLength, Color color, int sortingOrder)
@@ -204,7 +260,7 @@ public class RainController : MonoBehaviour
         ParticleSystem.ShapeModule shape = particles.shape;
         shape.shapeType = ParticleSystemShapeType.Box;
         shape.scale = new Vector3(width, 0.12f, 1f);
-        shape.position = new Vector3(0f, groundY, 0f);
+        shape.position = new Vector3(0f, groundY - transform.position.y, 0f);
 
         ParticleSystemRenderer renderer = layer.GetComponent<ParticleSystemRenderer>();
         renderer.material = particleMaterial;
@@ -250,6 +306,38 @@ public class RainController : MonoBehaviour
 
         tintOverlay = CreateOverlay(camera.transform, "Rain_Tint", new Color(tintColor.r, tintColor.g, tintColor.b, tintColor.a), 10, overlayWidth, overlayHeight);
         lightningOverlay = CreateOverlay(camera.transform, "Rain_Lightning", new Color(lightningColor.r, lightningColor.g, lightningColor.b, 0f), 100, overlayWidth, overlayHeight);
+    }
+
+    /// <summary>
+    /// 拼接进另一个场景时调用：把雨场钉在自己场景的中心、按场景尺寸铺，
+    /// 不再跟着相机跑（否则相机会把雨铺满整个拼接画面、糊到另一个场景上）。
+    /// </summary>
+    public void PinToScene(Vector3 sceneCenter, float sceneWidth, float sceneHeight)
+    {
+        transform.position = new Vector3(sceneCenter.x, sceneCenter.y, transform.position.z);
+
+        width = sceneWidth;
+        height = sceneHeight;
+
+        if (backgroundRain != null)
+        {
+            backgroundRain.width = width;
+            backgroundRain.height = height;
+        }
+        if (foregroundRain != null)
+        {
+            foregroundRain.width = width;
+            foregroundRain.height = height;
+        }
+        if (splashRain != null)
+        {
+            ParticleSystem.ShapeModule shape = splashRain.shape;
+            shape.scale = new Vector3(width, height, 1f);
+        }
+
+        // 这两个叠加层是"铺满相机视野"的，拼接时会盖住另一个场景，关掉。
+        if (tintOverlay != null) tintOverlay.gameObject.SetActive(false);
+        if (lightningOverlay != null) lightningOverlay.gameObject.SetActive(false);
     }
 
     private SpriteRenderer CreateOverlay(Transform parent, string name, Color color, int sortingOrder, float widthUnits, float heightUnits)

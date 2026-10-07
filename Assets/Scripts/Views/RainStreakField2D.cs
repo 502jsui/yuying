@@ -48,6 +48,11 @@ public class RainStreakField2D : MonoBehaviour
     {
         if (streaks == null || streaks.Length == 0) return;
 
+        Vector3 origin = transform.position;
+        float halfWidth = width * 0.5f;
+        float halfHeight = height * 0.5f;
+        float floorY = origin.y - halfHeight - respawnPadding;
+
         float dt = Time.deltaTime;
         for (int i = 0; i < streaks.Length; i++)
         {
@@ -56,9 +61,10 @@ public class RainStreakField2D : MonoBehaviour
 
             streak.position += (Vector3)(velocity * dt);
 
-            if (streak.position.y < groundY - respawnPadding ||
-                streak.position.x < -width * 0.5f - respawnPadding ||
-                streak.position.x > width * 0.5f + respawnPadding)
+            // 用雨场自身的范围做回收，保证雨覆盖整个雨场（包括屏幕最底部）。
+            if (streak.position.y < floorY ||
+                streak.position.x < origin.x - halfWidth - respawnPadding ||
+                streak.position.x > origin.x + halfWidth + respawnPadding)
             {
                 Respawn(i, true);
             }
@@ -98,10 +104,11 @@ public class RainStreakField2D : MonoBehaviour
         Transform streak = streaks[index];
         if (streak == null) return;
 
-        float x = Random.Range(-width * 0.5f, width * 0.5f);
+        Vector3 origin = transform.position;
+        float x = origin.x + Random.Range(-width * 0.5f, width * 0.5f);
         float y = fromTop
-            ? height * 0.5f + Random.Range(0f, 2f)
-            : Random.Range(-height * 0.5f, height * 0.5f);
+            ? origin.y + height * 0.5f + Random.Range(0f, 2f)
+            : origin.y + Random.Range(-height * 0.5f, height * 0.5f);
 
         streak.position = new Vector3(x, y, 0f);
         streak.localScale = new Vector3(streakWidth * Random.Range(0.85f, 1.15f), streakLength * Random.Range(0.75f, 1.25f), 1f);
