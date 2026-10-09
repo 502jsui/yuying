@@ -83,22 +83,8 @@ public class ScenePortal2D : MonoBehaviour
 
         enabledPortal = false;
         waitingToRearm = true;
-        StartCoroutine(LoadNextScene());
-    }
-
-    /// <summary>淡出 0.25 秒 → 异步加载下一个场景 → 淡入；避免切场景时的卡顿。</summary>
-    private System.Collections.IEnumerator LoadNextScene()
-    {
         SceneTransitionState.SetArrival(arrivalPortalId);
-        SceneTransitionState.BeginLoad();
-
-        while (SceneTransitionState.FadeAlpha < 0.99f) yield return null;
-
-        AsyncOperation operation = SceneManager.LoadSceneAsync(sceneName);
-        while (operation != null && !operation.isDone) yield return null;
-
-        // 正常情况到这里已经随场景销毁了；如果没销毁（比如目标场景没配好），这里兜一次底。
-        SceneTransitionState.EndLoad();
+        SceneManager.LoadScene(sceneName);
     }
 }
 
@@ -106,31 +92,6 @@ public static class SceneTransitionState
 {
     public static string ArrivalPortalId { get; private set; }
     public static bool HasArrival { get; private set; }
-
-    /// <summary>正在切场景：这段时间玩家不能动，画面在淡入淡出。</summary>
-    public static bool IsLoading { get; private set; }
-
-    /// <summary>0 = 全透明，1 = 全黑。</summary>
-    public static float FadeAlpha { get; private set; }
-
-    public const float FadeDuration = 0.25f;
-
-    public static void BeginLoad()
-    {
-        IsLoading = true;
-    }
-
-    public static void EndLoad()
-    {
-        IsLoading = false;
-    }
-
-    /// <summary>由 SceneFadeOverlay 每帧推进。</summary>
-    public static void TickFade(float deltaTime)
-    {
-        float target = IsLoading ? 1f : 0f;
-        FadeAlpha = Mathf.MoveTowards(FadeAlpha, target, Mathf.Max(0.0001f, deltaTime) / FadeDuration);
-    }
 
     public static void SetArrival(string portalId)
     {
@@ -151,7 +112,5 @@ public static class SceneTransitionState
     {
         ArrivalPortalId = null;
         HasArrival = false;
-        IsLoading = false;
-        FadeAlpha = 0f;
     }
 }
