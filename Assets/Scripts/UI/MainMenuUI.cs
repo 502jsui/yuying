@@ -1,0 +1,31 @@
+using UnityEngine;
+using UnityEngine.SceneManagement;
+
+public class MainMenuUI : MonoBehaviour
+{
+    public void OnStartClicked()
+    {
+        SceneManager.LoadScene("FirstFloor");
+    }
+
+    public void OnCreditsClicked()
+    {
+        Debug.Log("制作团队（暂未实现）");
+    }
+
+    public void OnSettingsClicked()
+    {
+        SceneManager.LoadScene("Settings");
+    }
+
+    public void OnQuitClicked()
+    {
+        #if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+        #else
+            Application.Quit();
+        #endif 
+        Application.Quit();
+        Debug.Log("退出游戏");
+    }
+}
