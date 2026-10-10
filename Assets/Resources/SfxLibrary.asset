@@ -1,0 +1,63 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5a8748ebd28609d43876070d3d9b6a10, type: 3}
+  m_Name: SfxLibrary
+  m_EditorClassIdentifier: 
+  entries:
+  - id: 1
+    clips:
+    - {fileID: 8300000, guid: a432818948233e640aa53c444380c865, type: 3}
+    volumeScale: 1
+  - id: 2
+    clips:
+    - {fileID: 8300000, guid: 75cda9935a1adf14da9367d1e90238f3, type: 3}
+    volumeScale: 1
+  - id: 3
+    clips:
+    - {fileID: 8300000, guid: b749b1fdc2f55754592e87f291e9936e, type: 3}
+    volumeScale: 1.8
+  - id: 4
+    clips:
+    - {fileID: 8300000, guid: 2d86743d333204345bd6a0e500a01eb2, type: 3}
+    volumeScale: 1
+  - id: 5
+    clips:
+    - {fileID: 8300000, guid: fc95cf4e4e6c780408d4b4e4c0a27544, type: 3}
+    volumeScale: 1
+  - id: 6
+    clips:
+    - {fileID: 8300000, guid: fb822581773e9e743a9eef81700dbf8b, type: 3}
+    - {fileID: 8300000, guid: d5a5d5925f542434abdc92c35faeac7e, type: 3}
+    - {fileID: 8300000, guid: c7ebc773a9c5e18469523baf083728ab, type: 3}
+    - {fileID: 8300000, guid: be710be9311c6304ebfd3a38da86f60b, type: 3}
+    - {fileID: 8300000, guid: 0908708422fb1ff46886c8bc11e089c8, type: 3}
+    volumeScale: 1
+  - id: 7
+    clips:
+    - {fileID: 8300000, guid: 4da51d0c799df214e90eae595add1513, type: 3}
+    - {fileID: 8300000, guid: cb533786909a1bb4481f6dbbe597f63c, type: 3}
+    - {fileID: 8300000, guid: c20149d6b44991e41b95b83ef1624804, type: 3}
+    volumeScale: 1
+  - id: 8
+    clips:
+    - {fileID: 8300000, guid: 19a7047e62230ed48b2aa2e88a3b7f08, type: 3}
+    - {fileID: 8300000, guid: e43b29a8173a9244aba59ca5e160f4cd, type: 3}
+    - {fileID: 8300000, guid: a2484b30cfad82a4c95e72a3bf635490, type: 3}
+    volumeScale: 1
+  - id: 9
+    clips:
+    - {fileID: 8300000, guid: c7291aa9a2933c742a07cc4715c41270, type: 3}
+    volumeScale: 1
+  - id: 10
+    clips:
+    - {fileID: 8300000, guid: 91469e6a35acdf640b4e487d27e798ce, type: 3}
+    volumeScale: 1

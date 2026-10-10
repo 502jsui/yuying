@@ -1,0 +1,142 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7eb32ecd09d92df4797d1fc009528ca5, type: 3}
+  m_Name: GameConfig
+  m_EditorClassIdentifier: 
+  totalRounds: 6
+  touchesPerRound: 1
+  highThreshold: 60
+  maxStatValue: 100
+  doorSeamWarmth: 30
+  doorHalfWarmth: 55
+  lightWhiteAwareness: 30
+  lightYellowAwareness: 54
+  motherInitialWarmth: 30
+  motherInitialAwareness: 30
+  motherOpenAwareness: 60
+  motherOpenWarmth: 61
+  motherOpenAwarenessValue: 63
+  itemTakenWithTemperatureWarmth: 18
+  itemTakenWithTemperatureAwareness: 15
+  itemTakenWithoutTemperatureAwareness: 15
+  talkWarmth: 4
+  talkAwareness: 8
+  talkMotherAwareness: 11
+  girlMoveWarmth: 18
+  forceTouchWarnCount: 2
+  forceTouchWarmthPenalty: 8
+  forceTouchContagionPenalty: 5
+  absentRoundChance: 0.8
+  wanderWeight: 35
+  talkWeight: 25
+  takeOutWeight: 20
+  takeBackWeight: 20
+  girlMoveWeight: 20
+  stayOutAreas: 0100000003000000
+  sceneItemCount: 3
+  talkMotherChance: 0.2
+  confusionTwoChance: 0.3
+  confusionMinCount: 1
+  confusionMaxCount: 2
+  npcPhaseTimeout: 30
+  phaseStepDelay: 0.2
+  npcActionStepDelay: 0.35
+  npcTravelDuration: 0.7
+  npcTravelSpeed: 3.5
+  autoStartOnSceneLoad: 1
+  residents:
+  - id: 1
+    warmth: 26
+    awareness: 20
+    hasAwareness: 1
+    actionMin: 2
+    actionMax: 3
+    homeArea: 1
+  - id: 2
+    warmth: 26
+    awareness: 20
+    hasAwareness: 1
+    actionMin: 2
+    actionMax: 3
+    homeArea: 1
+  - id: 3
+    warmth: 30
+    awareness: 0
+    hasAwareness: 0
+    actionMin: 1
+    actionMax: 2
+    homeArea: 1
+  - id: 0
+    warmth: 30
+    awareness: 30
+    hasAwareness: 1
+    actionMin: 0
+    actionMax: 0
+    homeArea: 1
+  items:
+  - itemId: grandma_01
+    owner: 0
+    type: 1
+    startsInScene: 1
+    startArea: 1
+    startPlacementId: first_rack
+  - itemId: grandma_02
+    owner: 0
+    type: 2
+    startsInScene: 0
+    startArea: 0
+    startPlacementId: 
+  - itemId: grandma_03
+    owner: 0
+    type: 3
+    startsInScene: 0
+    startArea: 0
+    startPlacementId: 
+  - itemId: aunt_01
+    owner: 1
+    type: 2
+    startsInScene: 1
+    startArea: 1
+    startPlacementId: first_ground_a
+  - itemId: aunt_02
+    owner: 1
+    type: 5
+    startsInScene: 0
+    startArea: 0
+    startPlacementId: 
+  - itemId: aunt_03
+    owner: 1
+    type: 4
+    startsInScene: 0
+    startArea: 0
+    startPlacementId: 
+  - itemId: mother_01
+    owner: 2
+    type: 1
+    startsInScene: 0
+    startArea: 0
+    startPlacementId: 
+  - itemId: mother_02
+    owner: 2
+    type: 6
+    startsInScene: 0
+    startArea: 0
+    startPlacementId: 
+  - itemId: mother_03
+    owner: 2
+    type: 7
+    startsInScene: 0
+    startArea: 0
+    startPlacementId: 
+  rainLoop: {fileID: 8300000, guid: 3b881426874195141a505e1049561498, type: 3}
+  musicLoop: {fileID: 8300000, guid: 19a8cc86749450045816c86bd32bb8a1, type: 3}
+  uiClick: {fileID: 0}

@@ -16,7 +16,39 @@ public class RainStreakField2D : MonoBehaviour
     public float rotationJitter = 0.04f;
     public float respawnPadding = 1.5f;
 
+    [Header("地板（雨丝落到 groundY 以下就不显示，避免穿过地板）")]
+    public bool blockBelowGround = true;
+
+    [Header("排除区（这个矩形下方不显示雨，用来做「屋顶挡住雨」）")]
+    public bool useExclusion;
+    public float exclusionMinX;
+    public float exclusionMaxX;
+    public float exclusionTopY;
+
     public int StreakCount { get { return streakCount; } }
+
+    /// <summary>少于这个 Y 且在 X 范围内 → 不显示雨（雨落在盖子上）。</summary>
+    public void SetExclusion(float minX, float maxX, float topY)
+    {
+        useExclusion = true;
+        exclusionMinX = Mathf.Min(minX, maxX);
+        exclusionMaxX = Mathf.Max(minX, maxX);
+        exclusionTopY = topY;
+    }
+
+    public void ClearExclusion()
+    {
+        useExclusion = false;
+    }
+
+    /// <summary>改变雨丝数量（拼接时按整场景宽度加雨量）。</summary>
+    public void SetStreakCount(int count)
+    {
+        int clamped = Mathf.Max(1, count);
+        if (clamped == streakCount && streaks != null) return;
+        streakCount = clamped;
+        Build();
+    }
 
     private Transform[] streaks;
     private SpriteRenderer[] renderers;
@@ -48,6 +80,14 @@ public class RainStreakField2D : MonoBehaviour
     {
         if (streaks == null || streaks.Length == 0) return;
 
+        Vector3 origin = transform.position;
+        float halfWidth = width * 0.5f;
+
+        // 雨丝落到地板线以下就回收（没有地板时用雨场底部兜底）。
+        float recycleY = blockBelowGround
+            ? groundY - respawnPadding
+            : origin.y - height * 0.5f - respawnPadding;
+
         float dt = Time.deltaTime;
         for (int i = 0; i < streaks.Length; i++)
         {
@@ -56,9 +96,23 @@ public class RainStreakField2D : MonoBehaviour
 
             streak.position += (Vector3)(velocity * dt);
 
-            if (streak.position.y < groundY - respawnPadding ||
-                streak.position.x < -width * 0.5f - respawnPadding ||
-                streak.position.x > width * 0.5f + respawnPadding)
+            // 地板线以下不显示（雨落在地上就停住，不穿过地板）；
+            // 屋盖下的排除区也不显示（雨打在盖子上）。
+            bool belowFloor = blockBelowGround && streak.position.y < groundY;
+            bool underRoof = useExclusion &&
+                             streak.position.x > exclusionMinX &&
+                             streak.position.x < exclusionMaxX &&
+                             streak.position.y < exclusionTopY;
+
+            if (renderers != null && renderers[i] != null)
+            {
+                bool hidden = belowFloor || underRoof;
+                if (renderers[i].enabled == hidden) renderers[i].enabled = !hidden;
+            }
+
+            if (streak.position.y < recycleY ||
+                streak.position.x < origin.x - halfWidth - respawnPadding ||
+                streak.position.x > origin.x + halfWidth + respawnPadding)
             {
                 Respawn(i, true);
             }
@@ -98,10 +152,11 @@ public class RainStreakField2D : MonoBehaviour
         Transform streak = streaks[index];
         if (streak == null) return;
 
-        float x = Random.Range(-width * 0.5f, width * 0.5f);
+        Vector3 origin = transform.position;
+        float x = origin.x + Random.Range(-width * 0.5f, width * 0.5f);
         float y = fromTop
-            ? height * 0.5f + Random.Range(0f, 2f)
-            : Random.Range(-height * 0.5f, height * 0.5f);
+            ? origin.y + height * 0.5f + Random.Range(0f, 2f)
+            : origin.y + Random.Range(-height * 0.5f, height * 0.5f);
 
         streak.position = new Vector3(x, y, 0f);
         streak.localScale = new Vector3(streakWidth * Random.Range(0.85f, 1.15f), streakLength * Random.Range(0.75f, 1.25f), 1f);
@@ -113,5 +168,6 @@ public class RainStreakField2D : MonoBehaviour
         Color streakColor = color;
         streakColor.a *= Random.Range(0.72f, 1.08f);
         renderers[index].color = streakColor;
+        renderers[index].enabled = !(blockBelowGround && streak.position.y < groundY);
     }
 }

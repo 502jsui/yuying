@@ -1,7 +1,7 @@
 public enum ItemOwner
 {
     Grandma,
-    Aunt,
+    Uncle,
     Mother,
     None
 }
