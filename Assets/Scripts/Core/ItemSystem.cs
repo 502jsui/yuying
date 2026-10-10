@@ -135,7 +135,13 @@ public class ItemSystem
 
         if (!ItemPlacementRules.CanPlace(item.type, placementSurface))
         {
+<<<<<<< HEAD
             return FailPlacement(itemId, item.type);
+=======
+            return ItemActionResult.Fail(itemId, ItemActionStatus.PlacementBlocked,
+                "「" + item.type.ToDisplayName() + "」不能放在这里，只能放在" +
+                ItemPlacementRules.DescribeAllowed(item.type) + "。");
+>>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
         }
 
         PlaceInScene(item, area, placementId);
@@ -311,7 +317,13 @@ public class ItemSystem
             return ItemActionResult.Fail(itemId, ItemActionStatus.Rejected, "只有小女孩会去移动别人的东西。");
         if (!ItemPlacementRules.CanPlace(item.type, placementSurface))
         {
+<<<<<<< HEAD
             return FailPlacement(itemId, item.type);
+=======
+            return ItemActionResult.Fail(itemId, ItemActionStatus.PlacementBlocked,
+                "「" + item.type.ToDisplayName() + "」不能放在这里，只能放在" +
+                ItemPlacementRules.DescribeAllowed(item.type) + "。");
+>>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
         }
 
         string previousPlacement = item.placementId;
@@ -566,6 +578,7 @@ public class ItemSystem
 
     public bool IsAreaBlocked(AreaId area)
     {
+<<<<<<< HEAD
         ResidentId resident;
         return TryGetBlockedResident(area, out resident);
     }
@@ -594,12 +607,21 @@ public class ItemSystem
 
         resident = id;
         return true;
+=======
+        return blockedAreas.ContainsKey(area);
+    }
+
+    public bool TryGetBlockedResident(AreaId area, out ResidentId resident)
+    {
+        return blockedAreas.TryGetValue(area, out resident);
+>>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
     }
 
     // ------------------------------------------------------------------
     // 内部
     // ------------------------------------------------------------------
 
+<<<<<<< HEAD
     /// <summary>
     /// 放置不合规：除了返回失败，还发一条提示事件 ——
     /// 这样 NPC「放不下东西」时玩家也能看到对应台词（以前只有玩家触碰会发提示，NPC 的失败传不到提示层）。
@@ -620,6 +642,8 @@ public class ItemSystem
         return result;
     }
 
+=======
+>>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
     private void PlaceInScene(ItemData item, AreaId area, string placementId)
     {
         item.isInPool = false;

@@ -428,6 +428,7 @@ public class NpcSystemTests
         Assert.IsTrue(items.IsAreaBlocked(blocked));
     }
 
+<<<<<<< HEAD
     [Test]
     public void StayOut_MovingToAnotherArea_MovesTheBlockWithHim()
     {
@@ -444,6 +445,8 @@ public class NpcSystemTests
         Assert.IsTrue(items.IsAreaBlocked(other), "新区域才应该被占住");
     }
 
+=======
+>>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
     // ---------------- 跨区域移动 ----------------
 
     [Test]

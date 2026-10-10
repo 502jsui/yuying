@@ -2,8 +2,13 @@ using System.Collections;
 using UnityEngine;
 
 /// <summary>
+<<<<<<< HEAD
 /// 音频管理：音量总线（主 / 音乐 / 音效）、音效表播放、雨声环境音淡入淡出与「断一拍」。
 /// 音效素材配在 Resources/SfxLibrary.asset，雨声循环配在 GameConfig.rainLoop。
+=======
+/// 音频管理。目前没有正式音频素材，所以只提供接口和音量控制，
+/// 之后把 AudioClip 填进 GameConfig 就能直接用（雨声循环、UI 音、断拍）。
+>>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
 /// </summary>
 public class AudioManager : MonoBehaviour
 {
@@ -15,17 +20,22 @@ public class AudioManager : MonoBehaviour
     private AudioSource sfxSource;
     private AudioSource rainSource;
     private Coroutine rainPauseRoutine;
+<<<<<<< HEAD
     private Coroutine rainFadeRoutine;
     private SfxLibrary library;
 
     /// <summary>雨声当前音量（0~1，淡入淡出的就是它）。</summary>
     private float rainCurrentVolume;
     private float rainTargetVolume;
+=======
+    private float rainBaseVolume = 1f;
+>>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
 
     public float MasterVolume { get; private set; } = 1f;
     public float MusicVolume { get; private set; } = 1f;
     public float SfxVolume { get; private set; } = 1f;
 
+<<<<<<< HEAD
     /// <summary>最近一次通过 SfxId 播放的音效（测试 / 调试用）。</summary>
     public SfxId LastPlayedSfxId { get; private set; } = SfxId.None;
     public AudioClip LastPlayedClip { get; private set; }
@@ -43,6 +53,10 @@ public class AudioManager : MonoBehaviour
     public void Initialize(GameConfig config, SfxLibrary sfxLibrary)
     {
         library = sfxLibrary;
+=======
+    public void Initialize(GameConfig config)
+    {
+>>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
         MasterVolume = PlayerPrefs.GetFloat(MasterKey, 1f);
         MusicVolume = PlayerPrefs.GetFloat(MusicKey, 1f);
         SfxVolume = PlayerPrefs.GetFloat(SfxKey, 1f);
@@ -51,6 +65,7 @@ public class AudioManager : MonoBehaviour
         sfxSource = CreateSource("Sfx");
         rainSource = CreateSource("Rain");
 
+<<<<<<< HEAD
         // 背景音乐：一进游戏就循环（走"音乐"音量总线）
         if (config != null && config.musicLoop != null)
         {
@@ -60,13 +75,19 @@ public class AudioManager : MonoBehaviour
             musicSource.Play();
         }
 
+=======
+>>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
         if (config != null && config.rainLoop != null)
         {
             rainSource.clip = config.rainLoop;
             rainSource.loop = true;
+<<<<<<< HEAD
             rainCurrentVolume = 0f;   // 默认静音，进后院再淡入
             rainTargetVolume = 0f;
             ApplyVolumes();
+=======
+            rainSource.volume = MasterVolume * MusicVolume;
+>>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
             rainSource.Play();
         }
     }
@@ -104,7 +125,11 @@ public class AudioManager : MonoBehaviour
     public void ApplyVolumes()
     {
         if (musicSource != null) musicSource.volume = MasterVolume * MusicVolume;
+<<<<<<< HEAD
         if (rainSource != null) rainSource.volume = MasterVolume * MusicVolume * rainCurrentVolume;
+=======
+        if (rainSource != null) rainSource.volume = MasterVolume * MusicVolume * rainBaseVolume;
+>>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
         if (sfxSource != null) sfxSource.volume = MasterVolume * SfxVolume;
     }
 
@@ -120,6 +145,7 @@ public class AudioManager : MonoBehaviour
     public void PlaySfx(AudioClip clip, float volumeScale = 1f)
     {
         if (sfxSource == null || clip == null) return;
+<<<<<<< HEAD
         sfxSource.PlayOneShot(clip, MasterVolume * SfxVolume * Mathf.Clamp(volumeScale, 0f, 4f));
     }
 
@@ -170,6 +196,15 @@ public class AudioManager : MonoBehaviour
         rainCurrentVolume = rainTargetVolume;
         ApplyVolumes();
         rainFadeRoutine = null;
+=======
+        sfxSource.PlayOneShot(clip, MasterVolume * SfxVolume * Mathf.Clamp01(volumeScale));
+    }
+
+    public void SetRainIntensity(float intensity01)
+    {
+        rainBaseVolume = Mathf.Clamp01(intensity01);
+        if (rainSource != null) rainSource.volume = MasterVolume * MusicVolume * rainBaseVolume;
+>>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
     }
 
     /// <summary>雨声断一拍：某户被影响时调用。</summary>
@@ -182,9 +217,16 @@ public class AudioManager : MonoBehaviour
 
     private IEnumerator RainPauseRoutine(float duration)
     {
+<<<<<<< HEAD
         rainSource.volume = 0f;
         yield return new WaitForSecondsRealtime(Mathf.Max(0.01f, duration));
         ApplyVolumes();
+=======
+        float original = rainSource.volume;
+        rainSource.volume = 0f;
+        yield return new WaitForSecondsRealtime(Mathf.Max(0.01f, duration));
+        rainSource.volume = original;
+>>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
         rainPauseRoutine = null;
     }
 }

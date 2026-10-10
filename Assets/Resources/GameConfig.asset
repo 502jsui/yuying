@@ -41,7 +41,13 @@ MonoBehaviour:
   takeOutWeight: 20
   takeBackWeight: 20
   girlMoveWeight: 20
+<<<<<<< HEAD
   stayOutAreas: 0100000003000000
+=======
+  stayOutAreas:
+  - 1
+  - 3
+>>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
   sceneItemCount: 3
   talkMotherChance: 0.2
   confusionTwoChance: 0.3
@@ -137,6 +143,10 @@ MonoBehaviour:
     startsInScene: 0
     startArea: 0
     startPlacementId: 
+<<<<<<< HEAD
   rainLoop: {fileID: 8300000, guid: 3b881426874195141a505e1049561498, type: 3}
   musicLoop: {fileID: 8300000, guid: 19a8cc86749450045816c86bd32bb8a1, type: 3}
+=======
+  rainLoop: {fileID: 0}
+>>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
   uiClick: {fileID: 0}

@@ -29,6 +29,7 @@ public class GameSession
     public ResidentId absentResident;
     public bool hasAbsentResident;
 
+<<<<<<< HEAD
     // ---- 文案 / 教学：整局只触发一次的标记 ----
     public bool openingDone;
     public bool tutorialFirstMoveDone;
@@ -37,6 +38,8 @@ public class GameSession
     public bool tutorialFirstTakenDone;
     public bool tutorialFirstSettleDone;
 
+=======
+>>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
     public event Action<ResidentId, float, float> WarmthChanged;
     public event Action<ResidentId, float, float> AwarenessChanged;
     public event Action<ResidentId, NpcState, NpcState> NpcStateChanged;
@@ -53,12 +56,15 @@ public class GameSession
         touchesThisRound = 0;
         absentResident = ResidentId.Girl;
         hasAbsentResident = false;
+<<<<<<< HEAD
         openingDone = false;
         tutorialFirstMoveDone = false;
         tutorialFirstTouchDone = false;
         tutorialFirstOutDone = false;
         tutorialFirstTakenDone = false;
         tutorialFirstSettleDone = false;
+=======
+>>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
 
         residents = new List<ResidentData>();
         for (int i = 0; i < config.residents.Count; i++)

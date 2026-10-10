@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 using System.Collections.Generic;
+=======
+using System.IO;
+>>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
 using UnityEditor;
 using UnityEngine;
 
@@ -9,11 +13,14 @@ public static class YuyinConfigTools
 {
     private const string ResourceFolder = "Assets/Resources";
     private const string ConfigPath = ResourceFolder + "/GameConfig.asset";
+<<<<<<< HEAD
     private const string TextPath = ResourceFolder + "/GameText.asset";
     private const string SfxLibraryPath = ResourceFolder + "/SfxLibrary.asset";
     private const string SfxRoot = "Assets/Audio/SFX";
     private const string RainLoopPath = "Assets/Audio/Ambience/rain_C_amb_loop_2_gopro.ogg";
     private const string MusicLoopPath = "Assets/Audio/Music/piano_C_slow_intermission_springspring.ogg";
+=======
+>>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
 
     [MenuItem("Tools/余音/创建或选中默认配置")]
     public static void CreateOrSelectConfig()
@@ -23,6 +30,7 @@ public static class YuyinConfigTools
         EditorGUIUtility.PingObject(config);
     }
 
+<<<<<<< HEAD
     [MenuItem("Tools/余音/创建或选中文案表")]
     public static void CreateOrSelectGameText()
     {
@@ -50,6 +58,8 @@ public static class YuyinConfigTools
         Debug.Log("[余音] GameConfig / GameText / SfxLibrary / rainLoop 都已就绪。");
     }
 
+=======
+>>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
     /// <summary>批处理入口：unity -executeMethod YuyinConfigTools.EnsureConfigAssetFromCommandLine</summary>
     public static void EnsureConfigAssetFromCommandLine()
     {
@@ -65,8 +75,11 @@ public static class YuyinConfigTools
         {
             existing.EnsureDefaults();
             EditorUtility.SetDirty(existing);
+<<<<<<< HEAD
             BindRainLoop(existing);
             BindMusicLoop(existing);
+=======
+>>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
             return existing;
         }
 
@@ -78,13 +91,17 @@ public static class YuyinConfigTools
         GameConfig created = ScriptableObject.CreateInstance<GameConfig>();
         created.EnsureDefaults();
         AssetDatabase.CreateAsset(created, ConfigPath);
+<<<<<<< HEAD
         BindRainLoop(created);
         BindMusicLoop(created);
+=======
+>>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
         Debug.Log("已创建默认 GameConfig：" + ConfigPath);
         return created;
     }
+<<<<<<< HEAD
 
     /// <summary>把雨声循环挂到 GameConfig.rainLoop（已经挂上就不动）。</summary>
     private static void BindRainLoop(GameConfig config)
@@ -201,4 +218,6 @@ public static class YuyinConfigTools
     {
         return AssetDatabase.LoadAssetAtPath<AudioClip>(SfxRoot + "/" + relativePath);
     }
+=======
+>>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
 }
