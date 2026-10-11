@@ -27,7 +27,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 0.9, y: 2.3, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 3523617290125638171}
@@ -71,8 +71,8 @@ SpriteRenderer:
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
   m_SortingLayerID: 796975133
-  m_SortingLayer: 5
-  m_SortingOrder: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 5
   m_Sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
   m_Color: {r: 0.5019608, g: 0.5647059, b: 0.627451, a: 1}
   m_FlipX: 0
@@ -96,7 +96,7 @@ GameObject:
   - component: {fileID: 6774588543554564865}
   - component: {fileID: 1576122359022235245}
   m_Layer: 7
-  m_Name: Resident_Aunt
+  m_Name: Resident_Uncle
   m_TagString: Resident
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -131,11 +131,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   id: 2
+  area: 0
+  groundY: -1.5
   bodyRenderer: {fileID: 5816249591631753593}
   doorLight: {fileID: 0}
   doorLightRenderer: {fileID: 0}
   warmthLow: {r: 0.6, g: 0.6, b: 0.7, a: 1}
   warmthHigh: {r: 1, g: 0.85, b: 0.5, a: 1}
+  tintBodyByWarmth: 1
   data:
     id: 0
     warmth: 0
@@ -147,6 +150,16 @@ MonoBehaviour:
     state: 0
     isHome: 0
     isOut: 0
+    homeArea: 0
+    stayOutArea: 0
+    currentArea: 0
+    currentX: 0
+    hasCurrentX: 0
+    groundY: 0
+    hasGroundY: 0
+    actionsTakenThisRound: 0
+    wasForceTouched: 0
+    canAct: 0
 --- !u!61 &1576122359022235245
 BoxCollider2D:
   m_ObjectHideFlags: 0

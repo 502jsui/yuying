@@ -1203,6 +1203,8 @@ MonoBehaviour:
   backgroundRate: 200
   foregroundRate: 110
   coverMargin: 3
+  groundSplash: 1
+  groundWater: 0
   backgroundSpeed: 22
   foregroundSpeed: 32
   windSpeed: 8
@@ -1898,7 +1900,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8188820250965197615, guid: e0ddc8b740ddbfa4d94f2ab23d21c357, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0
+      value: -0.5
       objectReference: {fileID: 0}
     - target: {fileID: 9032268263875439228, guid: e0ddc8b740ddbfa4d94f2ab23d21c357, type: 3}
       propertyPath: m_LocalPosition.x

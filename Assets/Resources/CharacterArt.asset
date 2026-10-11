@@ -1,0 +1,54 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a9b8f16b93e24ce4a8ff95ba9e7f6ae4, type: 3}
+  m_Name: CharacterArt
+  m_EditorClassIdentifier: 
+  player:
+    sprite: {fileID: 21300000, guid: 5402f20d6abb08d488e36650a8dd21db, type: 3}
+    height: 2.2
+    footOffsetY: -0.5
+    sortingOrder: 5
+    flipWithMovement: 1
+    tintByWarmth: 0
+  residents:
+  - id: 1
+    art:
+      sprite: {fileID: 0}
+      height: 2
+      footOffsetY: -1
+      sortingOrder: 5
+      flipWithMovement: 0
+      tintByWarmth: 1
+  - id: 2
+    art:
+      sprite: {fileID: 0}
+      height: 2.3
+      footOffsetY: -1.15
+      sortingOrder: 5
+      flipWithMovement: 0
+      tintByWarmth: 1
+  - id: 3
+    art:
+      sprite: {fileID: 0}
+      height: 1.4
+      footOffsetY: -0.7
+      sortingOrder: 5
+      flipWithMovement: 0
+      tintByWarmth: 1
+  - id: 0
+    art:
+      sprite: {fileID: 0}
+      height: 2.1
+      footOffsetY: -1.05
+      sortingOrder: 5
+      flipWithMovement: 0
+      tintByWarmth: 1

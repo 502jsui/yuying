@@ -20,6 +20,9 @@ public class ResidentView : MonoBehaviour
     public Color warmthLow = new Color(0.6f, 0.6f, 0.7f);
     public Color warmthHigh = new Color(1f, 0.85f, 0.5f);
 
+    [Tooltip("按暖意给整个立绘染色。占位方块用它做状态提示；换成真美术后关掉（暖意反馈交给门缝光）。")]
+    public bool tintBodyByWarmth = true;
+
     [HideInInspector] public ResidentData data;
 
     private Vector3 homePosition;
@@ -133,7 +136,7 @@ public class ResidentView : MonoBehaviour
         if (!visible) return;
 
         float t = Mathf.Clamp01(data.warmth / 60f);
-        if (bodyRenderer) bodyRenderer.color = Color.Lerp(warmthLow, warmthHigh, t);
+        if (bodyRenderer && tintBodyByWarmth) bodyRenderer.color = Color.Lerp(warmthLow, warmthHigh, t);
         if (doorLight != null) doorLight.Apply(data.warmth, data.awareness, data.hasAwareness);
     }
 
@@ -169,9 +172,25 @@ public class ResidentView : MonoBehaviour
         BoxCollider2D box = GetComponent<BoxCollider2D>();
         if (box == null) return;
 
-        Vector3 lossy = bodyRenderer.transform.lossyScale;
-        Vector2 size = new Vector2(Mathf.Abs(lossy.x), Mathf.Abs(lossy.y));
-        Vector3 offset = transform.InverseTransformPoint(bodyRenderer.transform.position);
+        // 判定框 = 立绘的实际范围（含枢轴偏移）。占位方块是 1x1 单位、中心枢轴，结果和以前一致。
+        Transform body = bodyRenderer.transform;
+        Vector3 lossy = body.lossyScale;
+        Vector2 size;
+        Vector3 centerWorld;
+
+        if (bodyRenderer.sprite != null)
+        {
+            Bounds bounds = bodyRenderer.sprite.bounds;
+            size = new Vector2(Mathf.Abs(bounds.size.x * lossy.x), Mathf.Abs(bounds.size.y * lossy.y));
+            centerWorld = body.position + Vector3.Scale(lossy, bounds.center);
+        }
+        else
+        {
+            size = new Vector2(Mathf.Abs(lossy.x), Mathf.Abs(lossy.y));
+            centerWorld = body.position;
+        }
+
+        Vector3 offset = transform.InverseTransformPoint(centerWorld);
 
         if (!Mathf.Approximately(box.size.x, size.x) || !Mathf.Approximately(box.size.y, size.y))
         {

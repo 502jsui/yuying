@@ -127,12 +127,9 @@ public static class YuyinSceneBuilder
 
         player.name = "Player";
         player.transform.position = position;
-        Transform body = player.transform.Find("Body");
-        if (body != null)
-        {
-            body.localPosition = Vector3.zero;
-            body.localScale = Vector3.one;
-        }
+
+        // 立绘尺寸统一由 CharacterArtConfig 决定（没配美术就退回占位方块），不要在这里手写。
+        CharacterArtApplier.ApplyPlayer(player, CharacterArtConfig.Load());
 
         PlayerController controller = player.GetComponent<PlayerController>();
         if (controller != null) controller.itemLayer = 1 << 8;

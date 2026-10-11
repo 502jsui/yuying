@@ -21,11 +21,58 @@ public class PlayerController : MonoBehaviour
     [Tooltip("按 E 时，离门这么近就算「对着门」。")]
     public float doorRange = 1.6f;
 
+    [Header("朝向")]
+    [Tooltip("立绘渲染器；留空时自动找子物体 Body。走路时按左右方向翻转。")]
+    public SpriteRenderer bodyRenderer;
+
+    [Tooltip("走路时是否按左右方向翻转立绘。由角色美术配置写入。")]
+    public bool flipWithMovement = true;
+
     private bool hintShown;
     private float stepDistance;
+    private bool facingLeft;
 
     private readonly List<float> doorXs = new List<float>();
     private string cachedSceneName;
+
+    /// <summary>现在朝左吗（纯表现，不影响判定）。</summary>
+    public bool FacingLeft { get { return facingLeft; } }
+
+    void Awake()
+    {
+        if (bodyRenderer != null) return;
+
+        Transform body = transform.Find("Body");
+        if (body != null) bodyRenderer = body.GetComponent<SpriteRenderer>();
+        if (bodyRenderer == null) bodyRenderer = GetComponentInChildren<SpriteRenderer>();
+    }
+
+    /// <summary>
+    /// 按左右输入算朝向：往左走朝左、往右走朝右，没有输入时保持原朝向（纯函数，方便单测）。
+    /// </summary>
+    public static bool ResolveFacing(float horizontal, bool currentFacingLeft)
+    {
+        if (Mathf.Abs(horizontal) < 0.01f) return currentFacingLeft;
+        return horizontal < 0f;
+    }
+
+    /// <summary>把朝向表现刷到立绘上（翻转只影响表现，不参与判定）。</summary>
+    public void ApplyFacing(bool faceLeft)
+    {
+        facingLeft = faceLeft;
+        if (bodyRenderer != null) bodyRenderer.flipX = faceLeft;
+    }
+
+    void Start()
+    {
+        // 从暂停界面回来时，把玩家放回他点暂停时站的位置（只消费一次）。
+        float resumeX;
+        if (!PauseSnapshot.ConsumePlayerX(out resumeX)) return;
+
+        Vector3 position = transform.position;
+        position.x = resumeX;
+        transform.position = position;
+    }
 
     void Update()
     {
@@ -51,6 +98,9 @@ public class PlayerController : MonoBehaviour
         float h = Input.GetAxisRaw("Horizontal");
         float dx = h * moveSpeed * Time.deltaTime;
         transform.position += new Vector3(dx, 0, 0);
+
+        bool nextFacingLeft = ResolveFacing(h, facingLeft);
+        if (flipWithMovement && nextFacingLeft != facingLeft) ApplyFacing(nextFacingLeft);
 
         if (Mathf.Abs(dx) > 0f)
         {

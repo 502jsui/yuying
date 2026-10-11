@@ -3,6 +3,7 @@
     "rootNamespace": "",
     "references": [
         "Yuyin.Runtime",
+        "Yuyin.Editor",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

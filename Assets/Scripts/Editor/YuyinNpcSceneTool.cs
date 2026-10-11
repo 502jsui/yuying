@@ -186,9 +186,8 @@ public static class YuyinNpcSceneTool
         view.area = spec.area;
         view.groundY = spec.position.y;
 
-        // 长条形占位：只拉身体 Sprite，不影响碰撞体和逻辑。
-        Transform body = EnsureBody(view);
-        if (body != null) body.localScale = new Vector3(spec.barSize.x, spec.barSize.y, 1f);
+        // 立绘 / 占位条统一由 CharacterArtApplier 刷：有美术用美术，没有就按 barSize 拉方块。
+        CharacterArtApplier.ApplyResident(view, spec, CharacterArtConfig.Load());
 
         BoxCollider2D box = instance.GetComponent<BoxCollider2D>();
         if (box != null)
@@ -209,26 +208,6 @@ public static class YuyinNpcSceneTool
         return view;
     }
 
-    /// <summary>
-    /// 保证 ResidentView 有 bodyRenderer（有的 prefab 装配漏了），返回要拉伸的身体 Transform。
-    /// </summary>
-    public static Transform EnsureBody(ResidentView view)
-    {
-        if (view == null) return null;
-
-        if (view.bodyRenderer == null)
-        {
-            SpriteRenderer sprite = view.GetComponentInChildren<SpriteRenderer>(true);
-            if (sprite != null)
-            {
-                view.bodyRenderer = sprite;
-                EditorUtility.SetDirty(view);
-            }
-        }
-
-        return view.bodyRenderer != null ? view.bodyRenderer.transform : null;
-    }
-
     /// <summary>修复已经摆好的 NPC：补 bodyRenderer、补长条尺寸、补巡逻组件。</summary>
     private static void RepairExisting(ResidentView view, NpcPlacementSpec spec)
     {
@@ -237,17 +216,8 @@ public static class YuyinNpcSceneTool
         view.area = spec.area;
         view.groundY = spec.position.y;
 
-        Transform body = EnsureBody(view);
-        if (body != null)
-        {
-            Vector3 scale = body.localScale;
-            // 之前因为 prefab 装配问题没被拉成长条的，补上（已经拉过的保持用户调整）。
-            if (Mathf.Approximately(scale.x, 1f) && Mathf.Approximately(scale.y, 1f))
-            {
-                body.localScale = new Vector3(spec.barSize.x, spec.barSize.y, 1f);
-                EditorUtility.SetDirty(body);
-            }
-        }
+        // 立绘 / 占位条按配置重新刷一遍（幂等，和场景重建器走同一条路径）。
+        CharacterArtApplier.ApplyResident(view, spec, CharacterArtConfig.Load());
 
         NpcPatrol2D patrol = view.GetComponent<NpcPatrol2D>();
         if (patrol == null)
