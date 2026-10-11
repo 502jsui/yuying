@@ -22,6 +22,8 @@ public class GameConfig : ScriptableObject
     public float lightYellowAwareness = 54f;
 
     [Header("母亲")]
+    [Tooltip("母亲是否参与本局。本次 Demo 关掉它：没人会去找她、她不会开门，结局只走「母亲低」的四档。")]
+    public bool motherEnabled = true;
     public float motherInitialWarmth = 30f;
     public float motherInitialAwareness = 30f;
     public float motherOpenAwareness = 60f;

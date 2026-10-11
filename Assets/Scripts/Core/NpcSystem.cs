@@ -272,8 +272,8 @@ public class NpcSystem
             }
         }
 
-        // 疑惑：下次行动必去敲母亲的门
-        if (resident.state == NpcState.Confused)
+        // 疑惑：下次行动必去敲母亲的门（母亲不参与、或本人不交流时落回常规行动）
+        if (resident.state == NpcState.Confused && CanTalk(resident) && IsMotherInPlay)
         {
             return new NpcActionRecord
             {
@@ -286,7 +286,8 @@ public class NpcSystem
         }
 
         // 惊吓：下次行动必为交流，且让对方暖意减少
-        if (resident.state == NpcState.Startled)
+        // （小女孩不交流，程序分工 5.10：她被强碰只吃暖意惩罚，行动照常）
+        if (resident.state == NpcState.Startled && CanTalk(resident))
         {
             return new NpcActionRecord
             {
@@ -572,11 +573,16 @@ public class NpcSystem
     public ResidentId PickTalkTarget(ResidentData actor)
     {
         if (actor == null) return ResidentId.Mother;
-        if (random.Chance(config.talkMotherChance)) return ResidentId.Mother;
+        if (IsMotherInPlay && random.Chance(config.talkMotherChance)) return ResidentId.Mother;
 
         if (actor.id == ResidentId.Grandma) return ResidentId.Uncle;
-        if (actor.id == ResidentId.Uncle) return ResidentId.Grandma;
-        return ResidentId.Mother;
+        return ResidentId.Grandma;
+    }
+
+    /// <summary>本局母亲是否参与（本次 Demo 不做母亲时关掉）。</summary>
+    public bool IsMotherInPlay
+    {
+        get { return config == null || config.motherEnabled; }
     }
 
     private ItemData FindNextPoolItem(ResidentData resident)

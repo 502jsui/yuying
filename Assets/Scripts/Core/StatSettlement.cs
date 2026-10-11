@@ -125,6 +125,8 @@ public class StatSettlement
     /// </summary>
     public bool ResolveMotherDoorAtEnd()
     {
+        if (config != null && !config.motherEnabled) return false;
+
         ResidentData mother = session.GetResident(ResidentId.Mother);
         if (mother == null) return false;
         if (mother.awareness <= config.motherOpenAwareness) return false;

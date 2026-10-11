@@ -411,7 +411,8 @@ public class ItemSystem
         item.hasTemperature = true;
 
         // 母亲的物品：本人不会来收，碰一下会让随机 1~2 位住户进入「疑惑」。
-        if (item.owner == ItemOwner.Mother)
+        // （母亲不参与本局时，不产生疑惑，避免"她不在场却在影响别人"。）
+        if (item.owner == ItemOwner.Mother && (config == null || config.motherEnabled))
         {
             ApplyConfusion();
         }

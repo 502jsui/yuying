@@ -405,6 +405,55 @@ public class NpcSystemTests
     }
 
     [Test]
+    public void Startled_Girl_DoesNotTalk()
+    {
+        // 程序分工 5.10：小女孩不交流。被强碰进入惊吓后，也不能凭空多出一次「交流母亲」。
+        session.SetNpcState(ResidentId.Girl, NpcState.Startled);
+        ResidentData girl = session.GetResident(ResidentId.Girl);
+        float motherAwareness = session.GetResident(ResidentId.Mother).awareness;
+
+        NpcActionRecord record = npc.DecideNextAction(girl, 1);
+        Assert.AreNotEqual(NpcActionType.Talk, record.action, "小女孩不能被强制交流");
+
+        npc.Execute(record);
+        Assert.AreEqual(motherAwareness, session.GetResident(ResidentId.Mother).awareness, 0.001f,
+            "小女孩的任何行动都不该改变母亲的知晓度");
+        Assert.AreEqual(NpcState.Normal, girl.state, "惊吓状态在行动后清除");
+    }
+
+    [Test]
+    public void Confused_Girl_DoesNotTalk()
+    {
+        session.SetNpcState(ResidentId.Girl, NpcState.Confused);
+        ResidentData girl = session.GetResident(ResidentId.Girl);
+
+        NpcActionRecord record = npc.DecideNextAction(girl, 1);
+        Assert.AreNotEqual(NpcActionType.Talk, record.action, "小女孩不会被强制去敲门");
+
+        npc.Execute(record);
+        Assert.AreEqual(NpcState.Normal, girl.state, "疑惑状态在行动后清除");
+    }
+
+    [Test]
+    public void MotherDisabled_NobodyTalksToHer_AndDoorStaysShut()
+    {
+        config.motherEnabled = false;
+        ResidentData mother = session.GetResident(ResidentId.Mother);
+        float awareness = mother.awareness;
+
+        for (int i = 0; i < 300; i++)
+        {
+            NpcActionRecord record = npc.DecideNextAction(session.GetResident(ResidentId.Grandma), 1);
+            if (record.action != NpcActionType.Talk) continue;
+            Assert.AreNotEqual(ResidentId.Mother, record.target, "母亲不参与时不该有人去找她");
+        }
+
+        Assert.IsFalse(new StatSettlement(config, session).ResolveMotherDoorAtEnd(),
+            "母亲不参与时不应该开门");
+        Assert.AreEqual(awareness, mother.awareness, 0.001f);
+    }
+
+    [Test]
     public void Execution_ReturnsToNormalAfterOuting()
     {
         ResidentData grandma = session.GetResident(ResidentId.Grandma);
