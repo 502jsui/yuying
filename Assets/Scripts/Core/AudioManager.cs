@@ -2,13 +2,8 @@ using System.Collections;
 using UnityEngine;
 
 /// <summary>
-<<<<<<< HEAD
 /// 音频管理：音量总线（主 / 音乐 / 音效）、音效表播放、雨声环境音淡入淡出与「断一拍」。
 /// 音效素材配在 Resources/SfxLibrary.asset，雨声循环配在 GameConfig.rainLoop。
-=======
-/// 音频管理。目前没有正式音频素材，所以只提供接口和音量控制，
-/// 之后把 AudioClip 填进 GameConfig 就能直接用（雨声循环、UI 音、断拍）。
->>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
 /// </summary>
 public class AudioManager : MonoBehaviour
 {
@@ -20,22 +15,18 @@ public class AudioManager : MonoBehaviour
     private AudioSource sfxSource;
     private AudioSource rainSource;
     private Coroutine rainPauseRoutine;
-<<<<<<< HEAD
     private Coroutine rainFadeRoutine;
+    private Coroutine musicFadeRoutine;
     private SfxLibrary library;
 
     /// <summary>雨声当前音量（0~1，淡入淡出的就是它）。</summary>
     private float rainCurrentVolume;
     private float rainTargetVolume;
-=======
-    private float rainBaseVolume = 1f;
->>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
 
     public float MasterVolume { get; private set; } = 1f;
     public float MusicVolume { get; private set; } = 1f;
     public float SfxVolume { get; private set; } = 1f;
 
-<<<<<<< HEAD
     /// <summary>最近一次通过 SfxId 播放的音效（测试 / 调试用）。</summary>
     public SfxId LastPlayedSfxId { get; private set; } = SfxId.None;
     public AudioClip LastPlayedClip { get; private set; }
@@ -53,10 +44,6 @@ public class AudioManager : MonoBehaviour
     public void Initialize(GameConfig config, SfxLibrary sfxLibrary)
     {
         library = sfxLibrary;
-=======
-    public void Initialize(GameConfig config)
-    {
->>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
         MasterVolume = PlayerPrefs.GetFloat(MasterKey, 1f);
         MusicVolume = PlayerPrefs.GetFloat(MusicKey, 1f);
         SfxVolume = PlayerPrefs.GetFloat(SfxKey, 1f);
@@ -65,9 +52,9 @@ public class AudioManager : MonoBehaviour
         sfxSource = CreateSource("Sfx");
         rainSource = CreateSource("Rain");
 
-<<<<<<< HEAD
-        // 背景音乐：一进游戏就循环（走"音乐"音量总线）
-        if (config != null && config.musicLoop != null)
+        // 背景音乐：一进游戏就循环（走"音乐"音量总线）。
+        // 如果有别的 BGM 控制器要接管，把 GameConfig.autoPlayMusicOnStart 关掉即可。
+        if (config != null && config.autoPlayMusicOnStart && config.musicLoop != null)
         {
             musicSource.clip = config.musicLoop;
             musicSource.loop = true;
@@ -75,19 +62,13 @@ public class AudioManager : MonoBehaviour
             musicSource.Play();
         }
 
-=======
->>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
         if (config != null && config.rainLoop != null)
         {
             rainSource.clip = config.rainLoop;
             rainSource.loop = true;
-<<<<<<< HEAD
             rainCurrentVolume = 0f;   // 默认静音，进后院再淡入
             rainTargetVolume = 0f;
             ApplyVolumes();
-=======
-            rainSource.volume = MasterVolume * MusicVolume;
->>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
             rainSource.Play();
         }
     }
@@ -116,6 +97,142 @@ public class AudioManager : MonoBehaviour
         ApplyVolumes();
     }
 
+    // ------------------------------------------------------------------
+    // 背景音乐接口（给 BGM 控制器 / 设置界面用）
+    // ------------------------------------------------------------------
+
+    /// <summary>现在有没有音乐在播。</summary>
+    public bool IsMusicPlaying
+    {
+        get { return musicSource != null && musicSource.isPlaying; }
+    }
+
+    /// <summary>现在这首是什么（没播就返回 null）。</summary>
+    public AudioClip CurrentMusic
+    {
+        get { return musicSource != null ? musicSource.clip : null; }
+    }
+
+    /// <summary>立刻停掉背景音乐。</summary>
+    public void StopMusic()
+    {
+        StopMusicFade();
+        if (musicSource == null) return;
+        musicSource.Stop();
+        musicSource.clip = null;
+    }
+
+    /// <summary>带淡入淡出地换背景音乐；fadeSeconds 传 0 等价于直接切。</summary>
+    public void PlayMusicWithFade(AudioClip clip, float fadeSeconds = 0.6f, bool loop = true)
+    {
+        if (musicSource == null || clip == null) return;
+
+        if (fadeSeconds <= 0f)
+        {
+            PlayMusic(clip, loop);
+            return;
+        }
+
+        StopMusicFade();
+        musicFadeRoutine = StartCoroutine(CrossfadeMusic(clip, loop, fadeSeconds));
+    }
+
+    /// <summary>
+    /// 只有不是同一首在播时才换 —— 用它做"切场景不把同一首 BGM 重头播"。
+    /// </summary>
+    public void PlayMusicIfDifferent(AudioClip clip, bool loop = true, float fadeSeconds = 0.6f)
+    {
+        if (clip == null) return;
+
+        if (musicSource != null && musicSource.clip == clip && musicSource.isPlaying)
+        {
+            musicSource.loop = loop;
+            return;
+        }
+
+        PlayMusicWithFade(clip, fadeSeconds, loop);
+    }
+
+    /// <summary>带淡出地停背景音乐。</summary>
+    public void StopMusicWithFade(float fadeSeconds = 0.6f)
+    {
+        if (musicSource == null) return;
+
+        if (fadeSeconds <= 0f)
+        {
+            StopMusic();
+            return;
+        }
+
+        StopMusicFade();
+        musicFadeRoutine = StartCoroutine(FadeOutMusic(fadeSeconds));
+    }
+
+    private void StopMusicFade()
+    {
+        if (musicFadeRoutine == null) return;
+        StopCoroutine(musicFadeRoutine);
+        musicFadeRoutine = null;
+    }
+
+    private IEnumerator CrossfadeMusic(AudioClip clip, bool loop, float fadeSeconds)
+    {
+        float target = MasterVolume * MusicVolume;
+        float half = Mathf.Max(0.01f, fadeSeconds * 0.5f);
+
+        // 前半段：当前这首淡出
+        if (musicSource.isPlaying)
+        {
+            float from = musicSource.volume;
+            float t = 0f;
+            while (t < half)
+            {
+                t += Time.unscaledDeltaTime;
+                musicSource.volume = Mathf.Lerp(from, 0f, Mathf.Clamp01(t / half));
+                yield return null;
+            }
+        }
+
+        // 换曲
+        musicSource.Stop();
+        musicSource.clip = clip;
+        musicSource.loop = loop;
+        musicSource.volume = 0f;
+        musicSource.Play();
+
+        // 后半段：新这首淡入
+        float e = 0f;
+        while (e < half)
+        {
+            e += Time.unscaledDeltaTime;
+            musicSource.volume = Mathf.Lerp(0f, target, Mathf.Clamp01(e / half));
+            yield return null;
+        }
+
+        musicSource.volume = target;
+        musicFadeRoutine = null;
+    }
+
+    private IEnumerator FadeOutMusic(float fadeSeconds)
+    {
+        float from = musicSource.volume;
+        float t = 0f;
+        while (t < fadeSeconds)
+        {
+            t += Time.unscaledDeltaTime;
+            if (musicSource == null) yield break;
+            musicSource.volume = Mathf.Lerp(from, 0f, Mathf.Clamp01(t / fadeSeconds));
+            yield return null;
+        }
+
+        if (musicSource != null)
+        {
+            musicSource.Stop();
+            musicSource.clip = null;
+        }
+        musicFadeRoutine = null;
+    }
+
     public void SetSfxVolume(float value)
     {
         SfxVolume = Mathf.Clamp01(value);
@@ -124,12 +241,9 @@ public class AudioManager : MonoBehaviour
 
     public void ApplyVolumes()
     {
-        if (musicSource != null) musicSource.volume = MasterVolume * MusicVolume;
-<<<<<<< HEAD
+        // 正在淡入淡出时别抢音量，交给协程管。
+        if (musicSource != null && musicFadeRoutine == null) musicSource.volume = MasterVolume * MusicVolume;
         if (rainSource != null) rainSource.volume = MasterVolume * MusicVolume * rainCurrentVolume;
-=======
-        if (rainSource != null) rainSource.volume = MasterVolume * MusicVolume * rainBaseVolume;
->>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
         if (sfxSource != null) sfxSource.volume = MasterVolume * SfxVolume;
     }
 
@@ -145,7 +259,6 @@ public class AudioManager : MonoBehaviour
     public void PlaySfx(AudioClip clip, float volumeScale = 1f)
     {
         if (sfxSource == null || clip == null) return;
-<<<<<<< HEAD
         sfxSource.PlayOneShot(clip, MasterVolume * SfxVolume * Mathf.Clamp(volumeScale, 0f, 4f));
     }
 
@@ -196,15 +309,6 @@ public class AudioManager : MonoBehaviour
         rainCurrentVolume = rainTargetVolume;
         ApplyVolumes();
         rainFadeRoutine = null;
-=======
-        sfxSource.PlayOneShot(clip, MasterVolume * SfxVolume * Mathf.Clamp01(volumeScale));
-    }
-
-    public void SetRainIntensity(float intensity01)
-    {
-        rainBaseVolume = Mathf.Clamp01(intensity01);
-        if (rainSource != null) rainSource.volume = MasterVolume * MusicVolume * rainBaseVolume;
->>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
     }
 
     /// <summary>雨声断一拍：某户被影响时调用。</summary>
@@ -217,16 +321,9 @@ public class AudioManager : MonoBehaviour
 
     private IEnumerator RainPauseRoutine(float duration)
     {
-<<<<<<< HEAD
         rainSource.volume = 0f;
         yield return new WaitForSecondsRealtime(Mathf.Max(0.01f, duration));
         ApplyVolumes();
-=======
-        float original = rainSource.volume;
-        rainSource.volume = 0f;
-        yield return new WaitForSecondsRealtime(Mathf.Max(0.01f, duration));
-        rainSource.volume = original;
->>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
         rainPauseRoutine = null;
     }
 }

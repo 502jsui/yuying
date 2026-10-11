@@ -65,7 +65,6 @@ public static class ItemPlacementRules
         return (allowed & surface) != 0;
     }
 
-<<<<<<< HEAD
     /// <summary>
     /// 算不算"重物"：强行触碰第 3 次起会用「砸到手就不好了」那句专用台词。
     /// 口径如果要改，只改这一个函数就行。
@@ -86,8 +85,6 @@ public static class ItemPlacementRules
         }
     }
 
-=======
->>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
     public static string DescribeAllowed(ItemType type)
     {
         PlacementSurface allowed = GetAllowedSurfaces(type);

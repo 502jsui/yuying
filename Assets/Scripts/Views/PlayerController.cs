@@ -12,7 +12,6 @@ public class PlayerController : MonoBehaviour
     [Tooltip("旧字段，保留兼容；实际按场景里的 ItemView 判定。")]
     public LayerMask itemLayer;
 
-<<<<<<< HEAD
     [Header("脚步")]
     [Tooltip("每走这么多世界单位播一次脚步。")]
     public float footstepInterval = 1.6f;
@@ -27,38 +26,16 @@ public class PlayerController : MonoBehaviour
 
     private readonly List<float> doorXs = new List<float>();
     private string cachedSceneName;
-=======
-    private bool hintShown;
->>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
 
     void Update()
     {
         GameRoot root = GameRoot.Instance;
-<<<<<<< HEAD
 
         if (root != null && root.Flow != null && !root.Flow.CanPlayerMove)
-=======
-        if (root != null && root.Flow != null && !root.Flow.CanPlayerMove)
         {
             UpdateHint(false);
             return;
         }
-        if (SceneTransitionState.IsLoading)
-        {
-            UpdateHint(false);
-            return;
-        }
-
-        float h = Input.GetAxisRaw("Horizontal");
-        transform.position += new Vector3(h, 0, 0) * moveSpeed * Time.deltaTime;
-
-        if (root != null && root.Flow != null && !root.Flow.CanPlayerInteract)
->>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
-        {
-            UpdateHint(false);
-            return;
-        }
-<<<<<<< HEAD
         if (SceneTransitionState.IsLoading)
         {
             UpdateHint(false);
@@ -86,8 +63,6 @@ public class PlayerController : MonoBehaviour
             UpdateHint(false);
             return;
         }
-=======
->>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
 
         float itemDistance;
         ItemView nearbyItem = FindTouchableItem(out itemDistance);
@@ -107,7 +82,6 @@ public class PlayerController : MonoBehaviour
         else if (nearbyItem != null)
         {
             GameManager.Instance.OnPlayerTouch(nearbyItem);
-<<<<<<< HEAD
         }
         else
         {
@@ -210,8 +184,6 @@ public class PlayerController : MonoBehaviour
             {
                 if (all[j] != null && all[j].name.StartsWith("Door_")) doorXs.Add(all[j].position.x);
             }
-=======
->>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
         }
     }
 

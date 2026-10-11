@@ -14,10 +14,7 @@ public class GameRoot : MonoBehaviour
     public static GameRoot Instance { get; private set; }
 
     public GameConfig Config { get; private set; }
-<<<<<<< HEAD
     public GameText Text { get; private set; }
-=======
->>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
     public RandomService Random { get; private set; }
     public GameSession Session { get; private set; }
     public GameFlow Flow { get; private set; }
@@ -25,10 +22,7 @@ public class GameRoot : MonoBehaviour
     public ItemSystem Items { get; private set; }
     public NpcSystem Npc { get; private set; }
     public AudioManager Audio { get; private set; }
-<<<<<<< HEAD
     public NarrationDirector Narration { get; private set; }
-=======
->>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
 
     /// <summary>当前场景的绑定器（GameManager）。</summary>
     public GameManager Scene { get; private set; }
@@ -53,10 +47,7 @@ public class GameRoot : MonoBehaviour
         DontDestroyOnLoad(gameObject);
 
         Config = GameConfig.Load();
-<<<<<<< HEAD
         Text = GameText.Load();
-=======
->>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
         Random = new RandomService(RandomService.NewSeed());
         Session = new GameSession();
         Session.Reset(Config, Random.Seed);
@@ -76,16 +67,11 @@ public class GameRoot : MonoBehaviour
         npcDriver.Initialize(Npc, Flow, Config);
 
         Audio = gameObject.AddComponent<AudioManager>();
-<<<<<<< HEAD
         Audio.Initialize(Config, SfxLibrary.Load());
 
         gameObject.AddComponent<AudioDirector>();
         Narration = gameObject.AddComponent<NarrationDirector>();
         gameObject.AddComponent<IntroNarration>();
-=======
-        Audio.Initialize(Config);
-
->>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
         gameObject.AddComponent<DebugOverlay>();
         gameObject.AddComponent<PromptOverlay>();
         gameObject.AddComponent<SceneFadeOverlay>();

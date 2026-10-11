@@ -20,7 +20,6 @@ public class NpcPhaseDriver : MonoBehaviour
     private Coroutine running;
     private bool subscribed;
 
-<<<<<<< HEAD
     /// <summary>本轮已经"从门里出来过"的住户：开门声每人每轮只响一次。</summary>
     private readonly HashSet<ResidentId> leftHomeThisRound = new HashSet<ResidentId>();
 
@@ -28,8 +27,6 @@ public class NpcPhaseDriver : MonoBehaviour
     private readonly List<NpcPatrol2D> phasePatrols = new List<NpcPatrol2D>();
     private readonly List<bool> phasePatrolWasEnabled = new List<bool>();
 
-=======
->>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
     public void Initialize(NpcSystem npcSystem, GameFlow gameFlow, GameConfig gameConfig)
     {
         npc = npcSystem;
@@ -48,10 +45,7 @@ public class NpcPhaseDriver : MonoBehaviour
 
     private void OnDestroy()
     {
-<<<<<<< HEAD
         RestorePatrolsAfterPhase();
-=======
->>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
         if (!subscribed) return;
         EventBus.Unsubscribe<RoundStartedEvent>(OnRoundStarted);
         EventBus.Unsubscribe<NpcActionPhaseEvent>(OnNpcActionPhase);
@@ -85,13 +79,10 @@ public class NpcPhaseDriver : MonoBehaviour
         SceneStitcher stitcher = SceneStitcher.Instance;
         if (stitcher != null) yield return stitcher.Begin(CurrentArea());
 
-<<<<<<< HEAD
         // 行动阶段完全由驱动接管移动：先关掉所有巡逻，否则巡逻会把越界的角色钳回 minX/maxX（瞬移）。
         leftHomeThisRound.Clear();
         DisablePatrolsForPhase();
 
-=======
->>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
         // 异常情况.pdf：场上没被碰过的物品 ≤1 件 → 这一轮必有住户拿出物品。
         npc.ForceTakeOutNext = npc.CountUntouchedItems(CurrentArea()) <= 1;
 
@@ -122,7 +113,6 @@ public class NpcPhaseDriver : MonoBehaviour
         NpcRoundEndResult roundEnd = npc.ResolveEndOfRound();
         yield return WalkHome(actors, roundEnd);
 
-<<<<<<< HEAD
         // 没能走回家的人（还在另一个场景 / 不回家的那位除外）统一补一次关门
         CloseDoorsForLeftovers(roundEnd);
 
@@ -130,11 +120,6 @@ public class NpcPhaseDriver : MonoBehaviour
         if (stitcher != null) yield return stitcher.End();
 
         RestorePatrolsAfterPhase();
-=======
-        // 行动演完，拆开两个场景、相机恢复。
-        if (stitcher != null) yield return stitcher.End();
-
->>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
         running = null;
         flow.NotifyNpcActionDone();
     }
@@ -149,7 +134,6 @@ public class NpcPhaseDriver : MonoBehaviour
             // 不回家的人停在原地，不下班。
             if (roundEnd.hasAbsentResident && actor.id == roundEnd.absentResident) continue;
 
-<<<<<<< HEAD
             ResidentView view = FindActorView(actor.id);
             if (view == null || view.area != CurrentArea()) continue;
 
@@ -216,34 +200,6 @@ public class NpcPhaseDriver : MonoBehaviour
         }
 
         {
-=======
-              ResidentView view = FindActorView(actor.id);
-              if (view == null || view.area != CurrentArea()) continue;
-              if (Mathf.Abs(view.transform.position.x - view.HomePosition.x) < 0.05f) continue;
-
-              // 回家路上保持可见，走到门口再进「门里面」。
-              SetOutside(actor, true);
-              Vector3 home = new Vector3(
-                  SceneStitcher.WorldX(view.area, view.HomePosition.x),
-                  view.HomePosition.y,
-                  view.HomePosition.z);
-              yield return TravelTo(actor.id, view.area, null, true, home);
-              SetOutside(actor, false);
-          }
-      }
-
-      private void ComeOutside(ResidentId actor)
-      {
-          ResidentData resident = npc.Session.GetResident(actor);
-          if (resident == null) return;
-          SetOutside(resident, true);
-      }
-
-      private void SetOutside(ResidentData resident, bool outside)
-      {
-          if (resident == null || resident.isOut == outside) return;
-          resident.isOut = outside;
->>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
           EventBus.Publish(new NpcMovedEvent
           {
               id = resident.id,
@@ -251,7 +207,6 @@ public class NpcPhaseDriver : MonoBehaviour
               to = resident.currentArea,
               placementId = null
           });
-<<<<<<< HEAD
         }
     }
 
@@ -301,9 +256,6 @@ public class NpcPhaseDriver : MonoBehaviour
         phasePatrols.Clear();
         phasePatrolWasEnabled.Clear();
     }
-=======
-      }
->>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
 
     // ------------------------------------------------------------------
     // 走位
@@ -432,10 +384,6 @@ public class NpcPhaseDriver : MonoBehaviour
     private IEnumerator MoveViewTo(ResidentView view, Vector3 target)
     {
         NpcPatrol2D patrol = view.GetComponent<NpcPatrol2D>();
-<<<<<<< HEAD
-=======
-        bool patrolWasEnabled = patrol != null && patrol.enabled;
->>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
         if (patrol != null) patrol.enabled = false;
 
         Vector3 from = view.transform.position;
@@ -451,13 +399,9 @@ public class NpcPhaseDriver : MonoBehaviour
 
         while (elapsed < duration)
         {
-<<<<<<< HEAD
             // 卡帧保护：一帧最多推进 50ms 的位移，
             // 否则加载 / GC 造成的一次长帧会让角色一步走完整段路（看起来就是瞬移）。
             elapsed += Mathf.Min(Time.deltaTime, 0.05f);
-=======
-            elapsed += Time.deltaTime;
->>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
             float x = Mathf.Lerp(from.x, destination.x, Mathf.Clamp01(elapsed / duration));
             view.transform.position = new Vector3(x, groundY, from.z);
             yield return null;
@@ -471,20 +415,12 @@ public class NpcPhaseDriver : MonoBehaviour
               view.data.hasCurrentX = true;
           }
 
-<<<<<<< HEAD
         // 巡逻范围跟着挪到新位置，免得一恢复巡逻就弹回原地；
         // 是否重新启用在相位收尾统一处理（行动阶段巡逻必须一直关着）。
-=======
-          // 巡逻范围跟着挪到新位置，免得一恢复巡逻就弹回原地。
->>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
         if (patrol != null)
         {
             patrol.minX = destination.x - 0.5f;
             patrol.maxX = destination.x + 0.5f;
-<<<<<<< HEAD
-=======
-            patrol.enabled = patrolWasEnabled;
->>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
         }
     }
 
@@ -550,12 +486,8 @@ public class NpcPhaseDriver : MonoBehaviour
         float elapsed = 0f;
         while (elapsed < duration)
         {
-<<<<<<< HEAD
             // 同上：限制单帧推进量，避免长帧导致跨场景瞬移
             elapsed += Mathf.Min(Time.deltaTime, 0.05f);
-=======
-            elapsed += Time.deltaTime;
->>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
             ApplyStitchedX(resident, Mathf.Lerp(startWorldX, targetWorldX, Mathf.Clamp01(elapsed / duration)));
             yield return null;
         }
@@ -588,13 +520,10 @@ public class NpcPhaseDriver : MonoBehaviour
         ResidentView view = FindActorView(resident.id, area);
         if (view == null) return;
 
-<<<<<<< HEAD
         // 保险：拼接走位期间巡逻必须关着，否则它会把刚走出去的角色钳回 minX/maxX。
         NpcPatrol2D patrol = view.GetComponent<NpcPatrol2D>();
         if (patrol != null && patrol.enabled) patrol.enabled = false;
 
-=======
->>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
         // 统一地面高度：两个场景的"地面线"不一样，不统一的话跨接缝会像在飞。
         if (!resident.hasGroundY)
         {

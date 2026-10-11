@@ -167,7 +167,6 @@ public struct DebugLogEvent
 {
     public string message;
 }
-<<<<<<< HEAD
 
 /// <summary>住户开门 / 关门（现有的 NpcMovedEvent 分不出开还是关）。</summary>
 public struct NpcDoorEvent
@@ -196,5 +195,3 @@ public struct NarrationEvent
     public NarrationPriority priority;
     public float holdSeconds;
 }
-=======
->>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0

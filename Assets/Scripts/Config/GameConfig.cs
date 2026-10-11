@@ -91,11 +91,11 @@ public class GameConfig : ScriptableObject
 
     [Header("音频（可留空）")]
     public AudioClip rainLoop;
-<<<<<<< HEAD
     public AudioClip musicLoop;
-=======
->>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
     public AudioClip uiClick;
+
+    [Tooltip("进游戏是否自动循环播放 musicLoop。如果有别的 BGM 控制器接管，把它关掉。")]
+    public bool autoPlayMusicOnStart = true;
 
     private void Reset()
     {

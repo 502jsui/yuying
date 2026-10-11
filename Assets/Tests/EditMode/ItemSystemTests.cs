@@ -376,12 +376,9 @@ public class ItemSystemTests
     [Test]
     public void ForceTouch_TwoWarnings_ThenAccepted()
     {
-<<<<<<< HEAD
         // 区域占用现在会校验"人真的在那儿、真的在门外"，所以先把他摆好
         session.GetResident(ResidentId.Uncle).currentArea = AreaId.FirstFloor;
         session.SetNpcState(ResidentId.Uncle, NpcState.StayOut);
-=======
->>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
         items.SetAreaBlocked(AreaId.FirstFloor, ResidentId.Uncle);
         ItemData item = items.GetItem("grandma_01");
 
@@ -415,11 +412,8 @@ public class ItemSystemTests
     {
         Assert.IsFalse(items.IsAreaBlocked(AreaId.Backyard));
 
-<<<<<<< HEAD
         session.GetResident(ResidentId.Girl).currentArea = AreaId.Backyard;
         session.SetNpcState(ResidentId.Girl, NpcState.StayOut);
-=======
->>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
         items.SetAreaBlocked(AreaId.Backyard, ResidentId.Girl);
         Assert.IsTrue(items.IsAreaBlocked(AreaId.Backyard));
 
@@ -430,7 +424,6 @@ public class ItemSystemTests
         items.ClearAreaBlocked(AreaId.Backyard);
         Assert.IsFalse(items.IsAreaBlocked(AreaId.Backyard));
     }
-<<<<<<< HEAD
 
     [Test]
     public void AreaBlock_IsIgnoredWhenResidentMovedAway()
@@ -488,6 +481,4 @@ public class ItemSystemTests
             EventBus.Unsubscribe(handler);
         }
     }
-=======
->>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
 }

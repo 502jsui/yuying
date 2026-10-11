@@ -165,7 +165,6 @@ public class NpcSystem
     {
         ResidentData resident = session.GetResident(id);
         if (resident == null || area == AreaId.None) return;
-<<<<<<< HEAD
 
         AreaId from = resident.currentArea;
         if (from == area)
@@ -177,12 +176,6 @@ public class NpcSystem
         resident.currentArea = area;
         SyncStayOutBlock(resident, area);
 
-=======
-        if (resident.currentArea == area) return;
-
-        AreaId from = resident.currentArea;
-        resident.currentArea = area;
->>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
         EventBus.Publish(new NpcMovedEvent
         {
             id = id,
@@ -192,7 +185,6 @@ public class NpcSystem
         });
     }
 
-<<<<<<< HEAD
     /// <summary>
     /// 「区域持续」（不回家）的住户走到哪个区域，区域占用就跟着搬到哪个区域，
     /// 同时清掉旧区域的登记、更新 stayOutArea。
@@ -212,8 +204,6 @@ public class NpcSystem
         items.SetAreaBlocked(area, resident.id);
     }
 
-=======
->>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
     /// <summary>这条行动发生在哪个区域（在执行之前解析，拿回东西要先读到物品当时的位置）。</summary>
     public AreaId ResolveActionArea(NpcActionRecord record)
     {
@@ -358,13 +348,9 @@ public class NpcSystem
                 return CanTalk(resident);
 
             case NpcActionType.TakeOutItem:
-<<<<<<< HEAD
                 // 注意：这里只看"有没有东西可拿"，不要求一定有位置 ——
                 // 没位置的情况要能走到 Execute 里失败，才会播"放不下"的台词。
                 return HasPoolItem(resident);
-=======
-                return HasPlacementForPool(resident);
->>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
 
             case NpcActionType.TakeBackItem:
                 return FindOwnSceneItem(resident) != null;
@@ -420,7 +406,6 @@ public class NpcSystem
         if (item == null) { record.action = NpcActionType.Wander; return; }
 
         PlacementOption placement;
-<<<<<<< HEAD
         if (!TryPickPlacement(item, resident, out placement))
         {
             // 没有合法空位：保留这件物品，让他"试着放但放不下"，
@@ -431,9 +416,6 @@ public class NpcSystem
             record.surface = PlacementSurface.None;
             return;
         }
-=======
-        if (!TryPickPlacement(item, resident, out placement)) { record.action = NpcActionType.Wander; return; }
->>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
 
         record.itemId = item.itemId;
         record.area = placement.area;
@@ -454,7 +436,6 @@ public class NpcSystem
         if (item == null) { record.action = NpcActionType.Wander; return; }
 
         PlacementOption placement;
-<<<<<<< HEAD
         if (!TryPickPlacement(item, resident, out placement))
         {
             // 同上：小女孩找不到能挪过去的位置时，也演一次"放不下"。
@@ -464,9 +445,6 @@ public class NpcSystem
             record.surface = PlacementSurface.None;
             return;
         }
-=======
-        if (!TryPickPlacement(item, resident, out placement)) { record.action = NpcActionType.Wander; return; }
->>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
 
         record.itemId = item.itemId;
         record.area = placement.area;
@@ -530,12 +508,8 @@ public class NpcSystem
         if (after == NpcState.Normal)
         {
             actor.wasForceTouched = false;
-<<<<<<< HEAD
             // 注意：这里不要把人塞回门里 —— 一轮出门期间要保持可见，
             // 由 NpcPhaseDriver 在他真正走回家时统一置 false（否则每次行动都会重发一次开门声）。
-=======
-            actor.isOut = false;
->>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
             actor.isHome = true;
             actor.stayOutArea = AreaId.None;
         }
@@ -644,7 +618,6 @@ public class NpcSystem
     private bool CanMoveItem(ResidentData resident)
     {
         if (resident == null || resident.id != ResidentId.Girl) return false;
-<<<<<<< HEAD
         // 同上：有东西可挪就算可用；挪不过去的时候走失败分支，好播"放不下"的台词。
         return FindMoveTarget(resident) != null;
     }
@@ -660,31 +633,6 @@ public class NpcSystem
         {
             ItemData item = session.items[i];
             if (item.owner == owner && item.isInPool && !item.isReturned) return true;
-=======
-        ItemData item = FindMoveTarget(resident);
-        if (item == null) return false;
-
-        PlacementOption placement;
-        return TryPickPlacement(item, resident, out placement);
-    }
-
-    private bool HasPlacementForPool(ResidentData resident)
-    {
-        if (items == null) return false;
-        ItemOwner owner = resident.id.ToItemOwner();
-        List<ItemData> pool = new List<ItemData>();
-        for (int i = 0; i < session.items.Count; i++)
-        {
-            ItemData item = session.items[i];
-            if (item.owner == owner && item.isInPool && !item.isReturned) pool.Add(item);
-        }
-        if (pool.Count == 0) return false;
-
-        for (int i = 0; i < pool.Count; i++)
-        {
-            PlacementOption placement;
-            if (TryPickPlacement(pool[i], resident, out placement)) return true;
->>>>>>> 77ae4b4f65e55a0104bba302c03a1db1c66dd2e0
         }
         return false;
     }
