@@ -2,14 +2,24 @@ using System.Collections;
 using UnityEngine;
 
 /// <summary>
-/// 音频管理：音量总线（主 / 音乐 / 音效）、音效表播放、雨声环境音淡入淡出与「断一拍」。
-/// 音效素材配在 Resources/SfxLibrary.asset，雨声循环配在 GameConfig.rainLoop。
+/// 工程唯一的音频出口：任何人要出声都得经过这里，不要各自 AddComponent&lt;AudioSource&gt;()。
+///
+/// 接口分四组：
+///   1) 音量总线：MasterVolume / MusicVolume / SfxVolume + SetXxxVolume + IsMuted / SetMuted / ToggleMute
+///      （数值自动存 PlayerPrefs，重启保留；静音只是把三路输出乘 0，滑条数值不动）
+///   2) 音效 SFX：PlaySfx(SfxId, scale) / PlaySfx(clip, scale)，音效表在 Resources/SfxLibrary.asset
+///   3) 背景音乐 BGM：PlayMusic / PlayMusicWithFade / PlayMusicIfDifferent / StopMusic / StopMusicWithFade
+///      + IsMusicPlaying / CurrentMusic
+///   4) 雨声环境音：SetRainIntensity / FadeRainTo / TriggerRainPause / RainVolume / RainTargetVolume
+///
+/// 调用方一律走 GameRoot.Instance.Audio；雨声循环配在 GameConfig.rainLoop，开局 BGM 配在 GameConfig.musicLoop。
 /// </summary>
 public class AudioManager : MonoBehaviour
 {
     private const string MasterKey = "yuyin_audio_master";
     private const string MusicKey = "yuyin_audio_music";
     private const string SfxKey = "yuyin_audio_sfx";
+    private const string MuteKey = "yuyin_audio_muted";
 
     private AudioSource musicSource;
     private AudioSource sfxSource;
@@ -33,8 +43,12 @@ public class AudioManager : MonoBehaviour
     public float RainVolume { get { return rainCurrentVolume; } }
     public float RainTargetVolume { get { return rainTargetVolume; } }
     public SfxLibrary Library { get { return library; } }
-    public bool MusicIsPlaying { get { return musicSource != null && musicSource.isPlaying; } }
-    public AudioClip MusicClip { get { return musicSource != null ? musicSource.clip : null; } }
+
+    /// <summary>全局静音。为 true 时三路输出都乘 0，但滑条上的数值 / 存档保持不变。</summary>
+    public bool IsMuted { get; private set; }
+
+    /// <summary>静音时给所有音量乘的系数（0 或 1）。</summary>
+    private float BusScale { get { return IsMuted ? 0f : 1f; } }
 
     public void Initialize(GameConfig config)
     {
@@ -47,6 +61,7 @@ public class AudioManager : MonoBehaviour
         MasterVolume = PlayerPrefs.GetFloat(MasterKey, 1f);
         MusicVolume = PlayerPrefs.GetFloat(MusicKey, 1f);
         SfxVolume = PlayerPrefs.GetFloat(SfxKey, 1f);
+        IsMuted = PlayerPrefs.GetInt(MuteKey, 0) == 1;
 
         musicSource = CreateSource("Music");
         sfxSource = CreateSource("Sfx");
@@ -58,7 +73,7 @@ public class AudioManager : MonoBehaviour
         {
             musicSource.clip = config.musicLoop;
             musicSource.loop = true;
-            musicSource.volume = MasterVolume * MusicVolume;
+            musicSource.volume = MasterVolume * MusicVolume * BusScale;
             musicSource.Play();
         }
 
@@ -177,7 +192,7 @@ public class AudioManager : MonoBehaviour
 
     private IEnumerator CrossfadeMusic(AudioClip clip, bool loop, float fadeSeconds)
     {
-        float target = MasterVolume * MusicVolume;
+        float target = MasterVolume * MusicVolume * BusScale;
         float half = Mathf.Max(0.01f, fadeSeconds * 0.5f);
 
         // 前半段：当前这首淡出
@@ -237,14 +252,38 @@ public class AudioManager : MonoBehaviour
     {
         SfxVolume = Mathf.Clamp01(value);
         PlayerPrefs.SetFloat(SfxKey, SfxVolume);
+        ApplyVolumes();
+    }
+
+    // ------------------------------------------------------------------
+    // 静音接口（给设置界面用）
+    // ------------------------------------------------------------------
+
+    /// <summary>开关静音。true=静音。会存 PlayerPrefs，重启保留。</summary>
+    public void SetMuted(bool muted)
+    {
+        IsMuted = muted;
+        PlayerPrefs.SetInt(MuteKey, muted ? 1 : 0);
+        PlayerPrefs.Save();
+        ApplyVolumes();
+    }
+
+    /// <summary>切换静音，返回切换后的状态（给"静音"按钮用）。</summary>
+    public bool ToggleMute()
+    {
+        SetMuted(!IsMuted);
+        return IsMuted;
     }
 
     public void ApplyVolumes()
     {
         // 正在淡入淡出时别抢音量，交给协程管。
-        if (musicSource != null && musicFadeRoutine == null) musicSource.volume = MasterVolume * MusicVolume;
-        if (rainSource != null) rainSource.volume = MasterVolume * MusicVolume * rainCurrentVolume;
-        if (sfxSource != null) sfxSource.volume = MasterVolume * SfxVolume;
+        if (musicSource != null && musicFadeRoutine == null) musicSource.volume = MasterVolume * MusicVolume * BusScale;
+        if (rainSource != null) rainSource.volume = MasterVolume * MusicVolume * rainCurrentVolume * BusScale;
+
+        // 音效走 PlayOneShot(clip, scale)，音量已经在 PlaySfx 里算好，
+        // 这里把源音量固定回 1，避免"总线音量被乘两次"。
+        if (sfxSource != null) sfxSource.volume = 1f;
     }
 
     public void PlayMusic(AudioClip clip, bool loop = true)
@@ -252,14 +291,14 @@ public class AudioManager : MonoBehaviour
         if (musicSource == null || clip == null) return;
         musicSource.clip = clip;
         musicSource.loop = loop;
-        musicSource.volume = MasterVolume * MusicVolume;
+        musicSource.volume = MasterVolume * MusicVolume * BusScale;
         musicSource.Play();
     }
 
     public void PlaySfx(AudioClip clip, float volumeScale = 1f)
     {
         if (sfxSource == null || clip == null) return;
-        sfxSource.PlayOneShot(clip, MasterVolume * SfxVolume * Mathf.Clamp(volumeScale, 0f, 4f));
+        sfxSource.PlayOneShot(clip, MasterVolume * SfxVolume * Mathf.Clamp(volumeScale, 0f, 4f) * BusScale);
     }
 
     /// <summary>按音效表播放一条音效（含随机变体和音量补偿）。返回是否真的播了。</summary>

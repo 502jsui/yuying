@@ -160,7 +160,7 @@ public class NpcDoorPatrolPlayModeTests
 
         AudioManager audio = GameRoot.Instance.Audio;
         Assert.IsNotNull(audio);
-        Assert.IsNotNull(audio.MusicClip, "GameConfig.musicLoop 应该已经绑定钢琴 BGM");
+        Assert.IsNotNull(audio.CurrentMusic, "GameConfig.musicLoop 应该已经绑定钢琴 BGM");
 
         // 改一下再改回来，避免污染本机保存的音量设置
         float original = audio.MusicVolume;
