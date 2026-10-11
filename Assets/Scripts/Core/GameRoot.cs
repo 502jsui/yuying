@@ -71,6 +71,7 @@ public class GameRoot : MonoBehaviour
 
         gameObject.AddComponent<AudioDirector>();
         Narration = gameObject.AddComponent<NarrationDirector>();
+        gameObject.AddComponent<PauseDirector>();
         gameObject.AddComponent<IntroNarration>();
         gameObject.AddComponent<DebugOverlay>();
         gameObject.AddComponent<PromptOverlay>();

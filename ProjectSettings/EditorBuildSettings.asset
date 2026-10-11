@@ -11,4 +11,7 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/Backyard.unity
     guid: ea1f257f66cd514458a8d1e8ecd54635
+  - enabled: 1
+    path: Assets/Scenes/Pause.unity
+    guid: 3ca74e5c8766c3349b1de5485c614c73
   m_configObjects: {}

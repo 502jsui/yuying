@@ -82,7 +82,7 @@ public class DebugOverlay : MonoBehaviour
         if (GUILayout.Button("重开一局（固定种子 12345）")) root.StartNewGame(12345);
         if (GUILayout.Button("强制进入下一阶段")) flow.ForceAdvancePhase();
         if (GUILayout.Button("把本区域物品全部标成有温度")) MarkAreaItemsWarm(session.playerArea);
-        if (GUILayout.Button(flow.State == GameState.Paused ? "继续" : "暂停")) TogglePause(flow);
+        if (GUILayout.Button(flow.State == GameState.Paused ? "继续（回游戏）" : "暂停（跳暂停场景）")) TogglePause();
         if (GUILayout.Button("保存快照")) root.SaveDebugSnapshot();
         if (GUILayout.Button("读取快照")) root.LoadDebugSnapshot();
 
@@ -108,9 +108,13 @@ public class DebugOverlay : MonoBehaviour
         }
     }
 
-    private void TogglePause(GameFlow flow)
+    /// <summary>调试面板的暂停走和 ESC 一样的路子（跳暂停场景 / 回到现场）。</summary>
+    private void TogglePause()
     {
-        if (flow.State == GameState.Paused) flow.Resume();
-        else flow.Pause();
+        PauseDirector director = PauseDirector.Instance;
+        if (director == null) return;
+
+        if (director.IsPaused) director.ResumeGame();
+        else director.PauseGame();
     }
 }

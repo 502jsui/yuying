@@ -57,12 +57,17 @@ public class PromptOverlay : MonoBehaviour
 
     private void Update()
     {
+        // 暂停界面里不要继续倒计时，回来时那句话还在。
+        if (IsPaused) return;
         if (string.IsNullOrEmpty(message)) return;
         if (hideAt > 0f && Time.unscaledTime >= hideAt) message = null;
     }
 
     private void OnGUI()
     {
+        // 暂停场景自己有背景和 UI，游戏里的提示条不要再叠上去（会重影）。
+        if (IsPaused) return;
+
         DrawInteractHint();
 
         if (string.IsNullOrEmpty(message)) return;
@@ -83,6 +88,15 @@ public class PromptOverlay : MonoBehaviour
         GUI.DrawTexture(rect, Texture2D.whiteTexture);
         GUI.color = Color.white;
         GUI.Label(rect, message, style);
+    }
+
+    private static bool IsPaused
+    {
+        get
+        {
+            GameRoot root = GameRoot.Instance;
+            return root != null && root.Flow != null && root.Flow.State == GameState.Paused;
+        }
     }
 
     private void DrawInteractHint()
