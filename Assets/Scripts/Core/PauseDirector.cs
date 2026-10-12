@@ -1,4 +1,3 @@
-using System.Collections;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
@@ -25,8 +24,6 @@ public class PauseDirector : MonoBehaviour
     [Tooltip("暂停场景名（要加进 Build Settings）。")]
     public string pauseSceneName = "Pause";
 
-    private bool switching;
-
     public bool IsPaused
     {
         get
@@ -43,7 +40,6 @@ public class PauseDirector : MonoBehaviour
         {
             GameRoot root = GameRoot.Instance;
             if (root == null || root.Flow == null || root.Session == null) return false;
-            if (switching) return false;
             if (!root.Flow.IsRunning || root.Session.isGameOver) return false;
             return root.Flow.State == GameState.Playing && root.Flow.CanPlayerMove;
         }
@@ -68,35 +64,13 @@ public class PauseDirector : MonoBehaviour
     public void PauseGame()
     {
         if (!CanPause) return;
-        StartCoroutine(PauseRoutine());
-    }
-
-    private IEnumerator PauseRoutine()
-    {
-        switching = true;
-
-        // 截图要等这一帧渲染完。
-        // 注意：无渲染设备（-nographics / 批处理）时没有 EndOfFrame 回调，
-        // 等它会永远卡住，所以那种情况下直接跳过等待（反正也截不到图）。
-        if (SystemInfo.graphicsDeviceType != GraphicsDeviceType.Null)
-        {
-            yield return new WaitForEndOfFrame();
-        }
-        yield return null;
 
         GameRoot root = GameRoot.Instance;
-        if (root == null || root.Flow == null || root.Session == null)
-        {
-            switching = false;
-            yield break;
-        }
+        if (root == null || root.Flow == null || root.Session == null) return;
 
-        Texture2D shot = CaptureScreenshot();
-        PauseSnapshot.Store(shot, root.Session.playerArea, CurrentPlayerX());
+        PauseSnapshot.Store(CaptureGameFrame(), root.Session.playerArea, CurrentPlayerX());
 
         root.Flow.Pause();   // Time.timeScale = 0 + GameState.Paused（回合循环跟着停）
-
-        switching = false;
         SceneManager.LoadScene(pauseSceneName, LoadSceneMode.Single);
     }
 
@@ -143,19 +117,53 @@ public class PauseDirector : MonoBehaviour
 #endif
     }
 
-    private static Texture2D CaptureScreenshot()
+    /// <summary>
+    /// 把游戏相机重渲染到 RenderTexture 再读成贴图。
+    ///
+    /// 刻意不用 ScreenCapture.CaptureScreenshotAsTexture：那玩意儿读的是屏幕后缓冲，
+    /// 无边框全屏（DXGI 翻转模型）下经常拿到全黑/空图，暂停背景就只剩兜底纯色了。
+    /// 重渲染这条路不碰屏幕缓冲，窗口 / 全屏一致，颜色也和游戏里一模一样。
+    /// </summary>
+    private static Texture2D CaptureGameFrame()
     {
         // 无渲染设备（-nographics / 批处理测试）时截不了，返回空，暂停场景会用纯色兜底。
         if (SystemInfo.graphicsDeviceType == GraphicsDeviceType.Null) return null;
 
+        Camera camera = Camera.main;
+        if (camera == null)
+        {
+            Debug.LogWarning("[暂停] 场景里找不到主相机，暂停背景退回纯色。");
+            return null;
+        }
+
+        int width = Mathf.Max(2, Screen.width);
+        int height = Mathf.Max(2, Screen.height);
+
+        RenderTexture target = RenderTexture.GetTemporary(width, height, 24, RenderTextureFormat.ARGB32);
+        RenderTexture previousTarget = camera.targetTexture;
+        RenderTexture previousActive = RenderTexture.active;
+
         try
         {
-            return ScreenCapture.CaptureScreenshotAsTexture();
+            camera.targetTexture = target;
+            camera.Render();
+
+            RenderTexture.active = target;
+            Texture2D texture = new Texture2D(width, height, TextureFormat.RGBA32, false);
+            texture.ReadPixels(new Rect(0f, 0f, width, height), 0, 0);
+            texture.Apply();
+            return texture;
         }
         catch (System.Exception exception)
         {
-            Debug.LogWarning("[暂停] 截图失败，背景退回纯色：" + exception.Message);
+            Debug.LogWarning("[暂停] 抓取画面失败，背景退回纯色：" + exception.Message);
             return null;
+        }
+        finally
+        {
+            camera.targetTexture = previousTarget;
+            RenderTexture.active = previousActive;
+            RenderTexture.ReleaseTemporary(target);
         }
     }
 
