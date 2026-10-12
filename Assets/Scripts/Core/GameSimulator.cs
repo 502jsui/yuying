@@ -44,6 +44,12 @@ public class SimulationTuning
     public float? talkMotherAwareness;
     public float? girlMoveWarmth;
 
+    [Tooltip("所有「有知晓度」的住户（老婆婆 / 大叔 / 母亲）的初始知晓度。")]
+    public float? initialAwareness;
+
+    [Tooltip("只改母亲的初始知晓度（填了就覆盖 initialAwareness 对她的作用）。")]
+    public float? motherInitialAwareness;
+
     public bool IsEmpty
     {
         get
@@ -53,7 +59,7 @@ public class SimulationTuning
                 && !absentRoundChance.HasValue && !itemTakenWithTemperatureWarmth.HasValue
                 && !itemTakenWithTemperatureAwareness.HasValue && !itemTakenWithoutTemperatureAwareness.HasValue
                 && !talkWarmth.HasValue && !talkAwareness.HasValue && !talkMotherAwareness.HasValue
-                && !girlMoveWarmth.HasValue;
+                && !girlMoveWarmth.HasValue && !initialAwareness.HasValue && !motherInitialAwareness.HasValue;
         }
     }
 
@@ -74,6 +80,25 @@ public class SimulationTuning
         if (talkAwareness.HasValue) config.talkAwareness = talkAwareness.Value;
         if (talkMotherAwareness.HasValue) config.talkMotherAwareness = talkMotherAwareness.Value;
         if (girlMoveWarmth.HasValue) config.girlMoveWarmth = girlMoveWarmth.Value;
+
+        if (initialAwareness.HasValue || motherInitialAwareness.HasValue)
+        {
+            for (int i = 0; i < config.residents.Count; i++)
+            {
+                ResidentConfig resident = config.residents[i];
+                if (resident == null || !resident.hasAwareness) continue;
+
+                if (resident.id == ResidentId.Mother)
+                {
+                    if (motherInitialAwareness.HasValue) resident.awareness = motherInitialAwareness.Value;
+                    else if (initialAwareness.HasValue) resident.awareness = initialAwareness.Value;
+                }
+                else if (initialAwareness.HasValue)
+                {
+                    resident.awareness = initialAwareness.Value;
+                }
+            }
+        }
     }
 
     /// <summary>列出这次覆盖了哪些参数，方便把结果对上配置。</summary>
@@ -94,6 +119,8 @@ public class SimulationTuning
         Add(lines, "talkAwareness", talkAwareness);
         Add(lines, "talkMotherAwareness", talkMotherAwareness);
         Add(lines, "girlMoveWarmth", girlMoveWarmth);
+        Add(lines, "initialAwareness", initialAwareness);
+        Add(lines, "motherInitialAwareness", motherInitialAwareness);
         return lines;
     }
 
@@ -176,6 +203,14 @@ public class SimulationReport
     public float minShare;
 
     public float motherDoorShare;
+    public float highThreshold = 60f;
+
+    /// <summary>「整栋楼都不知道他已经死了」的第一道门槛：婆婆和大叔的暖意都超过阈值。</summary>
+    public int neighborsWarmBothHigh;
+
+    /// <summary>上面那些局里，另外两道门槛（至少一人知晓 ≤ 阈值、母亲没开门）也满足的局数。</summary>
+    public int buildingUnawareCandidates;
+
     public float averageWarmTakeBacks;
     public float averageColdTakeBacks;
     public float averageGirlMoves;
@@ -223,6 +258,10 @@ public class SimulationReport
             + " 次 / 玩家触碰 " + Num(averageItemTouches)
             + " 次 / 强碰生效 " + Num(averageForceTouches)
             + " 次 / 强碰警告 " + Num(averageForceWarnings) + " 次");
+        text.AppendLine("「整栋楼都不知道」三道门槛：邻居暖意都 >" + Num(highThreshold) + " 的局 "
+            + neighborsWarmBothHigh + " / " + runs
+            + "；其中再满足「至少一人知晓 ≤" + Num(highThreshold) + " 且母亲没开门」的局 "
+            + buildingUnawareCandidates);
         text.AppendLine("平均最终暖意：老婆婆 " + Num(averageWarmth[(int)ResidentId.Grandma])
             + "  大叔 " + Num(averageWarmth[(int)ResidentId.Uncle])
             + "  小女孩 " + Num(averageWarmth[(int)ResidentId.Girl])
@@ -437,6 +476,7 @@ public static class GameSimulator
         report.seedBase = options.seedBase;
         report.policy = options.policy;
         report.tuningApplied = options.tuning != null ? options.tuning.Describe() : new List<string>();
+        report.highThreshold = config.highThreshold;
 
         if (options.ignoreMother) config.motherEnabled = false;
         report.motherEnabled = config.motherEnabled;
@@ -498,6 +538,8 @@ public static class GameSimulator
         report.minShare = shares[(int)minEnding];
 
         int doorOpen = 0;
+        int warmBothHigh = 0;
+        int unawareCandidates = 0;
         float warm = 0f, cold = 0f, girl = 0f, touches = 0f, force = 0f, warnings = 0f;
         float[] warmth = new float[4];
         float[] awareness = new float[4];
@@ -505,6 +547,17 @@ public static class GameSimulator
         {
             SimGameResult g = report.games[i];
             if (g.motherDoorOpen) doorOpen++;
+
+            // 「整栋楼都不知道他已经死了」的三道门槛，逐局数一数卡在哪。
+            bool neighborsWarmHigh = g.grandmaWarmth > report.highThreshold && g.uncleWarmth > report.highThreshold;
+            if (neighborsWarmHigh)
+            {
+                warmBothHigh++;
+                bool someoneAwarenessLow = g.grandmaAwareness <= report.highThreshold
+                    || g.uncleAwareness <= report.highThreshold;
+                if (someoneAwarenessLow && !g.motherDoorOpen) unawareCandidates++;
+            }
+
             warm += g.warmTakeBacks;
             cold += g.coldTakeBacks;
             girl += g.girlMoves;
@@ -522,6 +575,8 @@ public static class GameSimulator
 
         float n = Mathf.Max(1, report.games.Count);
         report.motherDoorShare = doorOpen / n;
+        report.neighborsWarmBothHigh = warmBothHigh;
+        report.buildingUnawareCandidates = unawareCandidates;
         report.averageWarmTakeBacks = warm / n;
         report.averageColdTakeBacks = cold / n;
         report.averageGirlMoves = girl / n;

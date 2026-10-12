@@ -31,6 +31,7 @@ using UnityEngine;
 ///             -simTalkMother -simAbsent
 ///             -simWarmTake -simAwareTake -simAwareTakeCold
 ///             -simWarmTalk -simAwareTalk -simAwareTalkMother -simGirlWarm
+///             -simInitAwareness -simInitAwarenessMother（初始知晓度）
 /// </summary>
 public static class YuyinSimulatorTool
 {
@@ -256,6 +257,8 @@ public static class YuyinSimulatorTool
         tuning.talkAwareness = GetFloatOrNull(args, "-simAwareTalk", tuning.talkAwareness);
         tuning.talkMotherAwareness = GetFloatOrNull(args, "-simAwareTalkMother", tuning.talkMotherAwareness);
         tuning.girlMoveWarmth = GetFloatOrNull(args, "-simGirlWarm", tuning.girlMoveWarmth);
+        tuning.initialAwareness = GetFloatOrNull(args, "-simInitAwareness", tuning.initialAwareness);
+        tuning.motherInitialAwareness = GetFloatOrNull(args, "-simInitAwarenessMother", tuning.motherInitialAwareness);
     }
 
     private static float? GetFloatOrNull(Dictionary<string, string> args, string key, float? fallback)
