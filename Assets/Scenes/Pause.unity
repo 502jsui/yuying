@@ -447,7 +447,7 @@ GameObject:
   - component: {fileID: 226197875}
   - component: {fileID: 226197876}
   m_Layer: 5
-  m_Name: Slider
+  m_Name: MasterSlider
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -857,7 +857,7 @@ GameObject:
   - component: {fileID: 509480926}
   - component: {fileID: 509480927}
   m_Layer: 5
-  m_Name: Slider
+  m_Name: SFXSlider
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1156,7 +1156,7 @@ GameObject:
   - component: {fileID: 630797344}
   - component: {fileID: 630797345}
   m_Layer: 5
-  m_Name: Slider
+  m_Name: MusicSlider
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1614,7 +1614,7 @@ GameObject:
   - component: {fileID: 994212678}
   - component: {fileID: 994212679}
   m_Layer: 5
-  m_Name: Slider
+  m_Name: BrightnessSlider
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2240,7 +2240,7 @@ MonoBehaviour:
   settingsPanel: {fileID: 1328819939}
   masterSlider: {fileID: 226197876}
   musicSlider: {fileID: 630797345}
-  sfxSlider: {fileID: 0}
+  sfxSlider: {fileID: 509480927}
   muteToggle: {fileID: 0}
   brightnessOverlay: {fileID: 0}
 --- !u!1 &1236375468
