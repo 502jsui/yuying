@@ -135,20 +135,41 @@ public class NpcSystem
         ResidentId absent = default(ResidentId);
         bool hasAbsent = TurnRules.TryPickAbsentResident(random, config, session.residents, out absent);
 
-        // 先把「停在哪」定下来：就在他这一刻所在的区域。
-        if (hasAbsent)
+        // 这里只把「谁不回家」落到状态和区域占用上，**不能**调 BeginRound：
+        // BeginRound 会把所有人的 isOut 清成 false，让还没走到门口的住户当场从画面上消失，
+        // 并且回家时的关门声也发不出来（isOut 已经是 false，转不过去）。
+        // 「走回家 + 关门」由 NpcPhaseDriver 收尾；其余字段等下一轮 BeginRound 再复位。
+        if (items != null) items.ClearAllBlockedAreas();
+
+        for (int i = 0; i < session.residents.Count; i++)
         {
-            ResidentData resident = session.GetResident(absent);
-            if (resident != null)
+            ResidentData resident = session.residents[i];
+            if (resident == null || !resident.canAct) continue;
+
+            if (hasAbsent && resident.id == absent)
             {
-                resident.stayOutArea = resident.currentArea != AreaId.None
+                // 停在他当时所在的区域。
+                AreaId area = resident.currentArea != AreaId.None
                     ? resident.currentArea
                     : PickStayOutArea();
+
+                resident.stayOutArea = area;
+                resident.currentArea = area;
+                resident.isHome = false;
+                resident.isOut = true;
+                session.SetNpcState(resident.id, NpcStateRules.OnRoundStart(true));
+                if (items != null && area != AreaId.None) items.SetAreaBlocked(area, resident.id);
+            }
+            else
+            {
+                resident.stayOutArea = AreaId.None;
+                resident.isHome = true;
+                // 状态回「正常」，但人还留在外面：等 NpcPhaseDriver 把他走回门口再关门。
+                session.SetNpcState(resident.id, NpcStateRules.OnRoundStart(false));
             }
         }
 
         session.SetAbsentDecision(hasAbsent, absent);
-        BeginRound(hasAbsent, absent);
 
         return new NpcRoundEndResult
         {
