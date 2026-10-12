@@ -33,6 +33,7 @@ crashlytics-build.properties
 *.csproj
 *.unityproj
 *.sln
+*.slnx
 *.suo
 *.user
 *.userprefs
