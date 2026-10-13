@@ -1,6 +1,11 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
+/// <summary>
+/// 主界面的标题和按钮
+/// 按下按钮自动跳转场景
+/// </summary>
+
 public class MainMenuUI : MonoBehaviour
 {
     public void OnStartClicked()

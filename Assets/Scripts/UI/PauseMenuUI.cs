@@ -1,6 +1,12 @@
 using UnityEngine;
 using UnityEngine.UI;
 
+/// <summary>
+/// 暂停界面及设置项的转发
+/// 暂停界面和设置项互斥显示
+/// 依赖于主程序埋下的音频接口
+/// </summary>
+
 public class PauseMenuUI : MonoBehaviour
 {
     [Header("两个面板")]

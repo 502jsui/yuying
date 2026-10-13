@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | `Assets/Scenes/MainMenu.unity` | 标题 + 开始 / 制作名单 / 设置 / 退出 | **Build Settings 第 0 个（启动场景）** |
 | `Assets/Scenes/Settings.unity` | 主音量 / 音乐 / 音效 / 亮度 + 返回 | 主菜单「设置」 |
-| `Assets/Scenes/Credits.unity` | 创作团队名单 + 返回 | 主菜单「制作名单」 |
+| `Assets/Scenes/Credits.unity` | 创作团队名单（名字暂时留空） + 返回 | 主菜单「制作名单」 |
 | `Assets/Scenes/Pause.unity` | 暂停菜单（继续 / 设置 / 退出）+ 场景内设置面板 | 游戏内 ESC，或 `PauseDirector.PauseGame()` |
 
 ## 二、代码在哪
@@ -65,7 +65,7 @@
 而且游戏还停在 `timeScale = 0` + `GameState.Paused` 的坏状态。
 
 所以暂停界面的「设置」做成**暂停场景内部的一个面板**：
-不切场景、不破坏暂停状态。`主菜单 → 设置` 那条路照旧走 `Settings.unity`。
+不切场景、不破坏暂停状态。（尽管按钮和滑块组件是从Settings.unity里复制来的）`主菜单 → 设置` 那条路照旧走 `Settings.unity`。
 
 ## 五、暂停时钟（游戏内 HUD）
 
@@ -92,7 +92,7 @@ Assets/Resources/UI/PauseButtonHUD.prefab     ← 预制件（Canvas + 圆盘 + 
   → `PauseButtonHUD` 会在游戏场景里**补一个 EventSystem**（不常驻，随场景销毁）
 - 指针用 `Time.unscaledTime` → `timeScale = 0` 时不冻
 - 时钟只累计「游戏中且未暂停」的时间
-- ESC 触发暂停是 `PauseDirector` 本来就有的，UI 不用管
+- ESC 触发暂停是 `PauseDirector` 是主程序预先加好的
 
 ## 六、分辨率适配
 
@@ -102,11 +102,8 @@ Assets/Resources/UI/PauseButtonHUD.prefab     ← 预制件（Canvas + 圆盘 + 
 Canvas Scaler
   UI Scale Mode        = Scale With Screen Size
   Reference Resolution = 1920 x 1080
-  Screen Match Mode    = Match Width Or Height
-  Match                = 0            （匹配宽度）
+  Screen Match Mode    = Expand
 ```
-
-> ⚠️ `Match = 0` 的取舍：宽屏不变形 ✅；窄屏（4:3）上下可能被裁 —— 目前 UI 都居中，没问题 ✅
 
 锚点规矩：
 
@@ -138,7 +135,7 @@ Canvas Scaler
 | 面板开关 | `Open<用途>Panel()` / `Close<用途>Panel()` | — |
 
 > ⚠️ **滑条/开关/面板一定要起有意义的名字** —— 曾有 4 个滑条全叫 `Slider`，
-> 在 Inspector 里拖引用时分不清，导致 `sfxSlider` 漏挂（症状：拖了没反应、重进又回默认值）。
+> 在 Inspector 里拖引用时分不清，导致 `sfxSlider` 漏挂（症状：拖了没反应、重进又回默认值0.5）。
 
 ### 7.2 脚本
 
@@ -151,28 +148,17 @@ Canvas Scaler
 | 5 | 滑条 `Min/Max` 一律 **0 ~ 1** |
 | 6 | 脚本存成 **UTF-8** |
 
-### 7.3 按钮尺寸（重要）
+### 7.3 按钮尺寸
 
-> **按钮的 `RectTransform` 高度 ≥ 字号 × 1.2**
+按钮高度不要直接按「每字宽度」推，因为**宽度和高度用的不是同一个量**：
 
-因为 TMP 字形会**超出**自己的矩形渲染，但**命中判定只认矩形** ——
-矩形比文字小的话，**可点 / 可悬停的范围会比看起来的小**，
-表现为「鼠标在字形的空隙上不响应」「点某些位置没反应」。
+- 宽度 = 字数 × 每个字的**前进宽度**（中文全角 ≈ 1 个字号/字）
+- 高度 = 行数 × **行高**（ascent + descent，通常比字号大 10~30%）
 
-例：字号 128 → 按钮高度至少 **154**；字号 64 → 至少 **77**。
-> **注**：当按钮高度与字号相等时，按钮框和文字本身的大小接近，
-> 手动测试未发现问题，因此本项目**暂且采用「按钮高度 = 字号」**。
+**最稳的做法**：选中 `Text (TMP)`，看 Inspector 最下面「布局属性」里的
+**`Preferred Width` / `Preferred Height`**，按钮尺寸 ≥ 这两个数即可。
 
-> **经验参考**：曾出现「高度 30 / 字号 128」的极端不匹配，导致文字严重溢出，
-> 可点 / 可悬停范围只剩中间一条薄带 —— 症状是「鼠标在字形的空隙上不响应」。
-> 所以**高度不要小于字号**；字号变大时高度要跟着变大。
-
-**为什么「高度 = 字号」目前是安全的**：
-
-- 交互范围由**按钮自己的 `Image` 矩形**决定（文字已关掉 `Raycast Target`，见 7.4）
-  → 高度等于字号时，矩形仍然完整覆盖文字 ✅
-- 剩下的只是**视觉**风险（字形上下可能略微超出矩形边框），
-  而这取决于字体本身的字面框；实测当前字体在这个比例下没问题 ✅
+⚠️ 如果 `Preferred Width` 超过按钮宽度，TMP 会**逐字换行**，需要的高度直接翻倍。
 
 
 ### 7.4 射线（Raycast Target）
