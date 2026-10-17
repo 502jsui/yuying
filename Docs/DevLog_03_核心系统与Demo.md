@@ -137,9 +137,9 @@ prefab 文件也改名（GUID 不变，场景引用不受影响）。
 
 ## 六、已知限制
 
-- **正式 UI 未做**：没有主界面 / 暂停 / 设置 / 结束界面，只有屏幕底部文字提示和 F1 调试面板
-- **音效未接**：`AudioManager` 的接口都在，但 `PlaySfx / PlayMusic / TriggerRainPause` 一次都没被调用，`GameConfig` 里的 clip 是空的
-- **门缝光未接**：`DoorLightView` 组件、阈值和单测都在，但两个场景的门还是纯色块（0 引用）
+- ✅ **正式 UI 已接**（队友 36ak）：主菜单 / 设置 / 创作团队 / 暂停面板 + 暂停时钟 HUD，音量统一走 `AudioManager`；**结束界面仍未做**
+- ✅ **音效已接**：`AudioDirector` 订阅玩法事件统一播音效，`SfxLibrary` 已配齐；雨声断拍也接了
+- ⏳ **门缝光仍未接**：`DoorLightView` 组件还在，但两个场景的门还是纯色块（0 引用）
 - **美术是占位**：玩家 / 物品是方块，NPC 是长条
 - **结局只有一个日志**：`EndingRules` 是纯函数 + 单测，但没接界面（按需求暂不做）
 - **二楼没做**：`AreaId.SecondFloor` 已预留

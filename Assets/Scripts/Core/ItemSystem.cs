@@ -12,6 +12,9 @@ using UnityEngine;
 ///
 /// 这个类不挂场景、不认 Prefab，只碰 GameSession 里的数据，所以可以直接写单测。
 /// 表现层通过 ItemView 订阅事件刷新；场景放置点由 PlacementPoint 提供。
+///
+/// 谁在用：GameRoot 持有；GameFlow 在场景状态阶段调 EnsureSceneItems；
+/// NpcSystem 调 TakeOut / Return / Move；GameManager + PlayerController 调 Touch / TouchResident。
 /// </summary>
 public class ItemSystem
 {
@@ -146,15 +149,6 @@ public class ItemSystem
             placementId = placementId
         });
         return ItemActionResult.Ok(itemId, ItemActionStatus.Success, "物品已经放出来了。");
-    }
-
-    /// <summary>让住户「拿出东西」：从池里取下一件。</summary>
-    public ItemActionResult TakeOutNext(ItemOwner owner, AreaId area, string placementId, PlacementSurface placementSurface)
-    {
-        ItemData item = FindNextPoolItem(owner);
-        if (item == null)
-            return ItemActionResult.Fail(null, ItemActionStatus.NoItemInPool, "物品池里已经没有东西了。");
-        return TakeOut(item.itemId, area, placementId, placementSurface);
     }
 
     /// <summary>

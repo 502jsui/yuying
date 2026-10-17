@@ -71,10 +71,4 @@ public class SfxLibrary : ScriptableObject
         return entry != null ? Mathf.Clamp(entry.volumeScale, 0f, 4f) : 1f;
     }
 
-    /// <summary>把所有条目按 id 排列好（编辑器生成资产时用）。</summary>
-    public void SortById()
-    {
-        if (entries == null) return;
-        entries.Sort(delegate (SfxEntry a, SfxEntry b) { return a.id.CompareTo(b.id); });
-    }
 }

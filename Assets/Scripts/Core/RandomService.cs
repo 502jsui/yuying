@@ -99,10 +99,4 @@ public class RandomService
         return items[Range(0, items.Count)];
     }
 
-    /// <summary>是否命中“以 1/count 为概率”的稀有事件，count&lt;=1 时必中。</summary>
-    public bool OneIn(int count)
-    {
-        if (count <= 1) return true;
-        return Range(0, count) == 0;
-    }
 }

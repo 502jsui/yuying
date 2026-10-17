@@ -326,38 +326,6 @@ public class RainController : MonoBehaviour
     }
 
     /// <summary>
-    /// 拼接进另一个场景时调用：把雨场钉在自己场景的中心、按场景尺寸铺，
-    /// 不再跟着相机跑（否则相机会把雨铺满整个拼接画面、糊到另一个场景上）。
-    /// </summary>
-    public void PinToScene(Vector3 sceneCenter, float sceneWidth, float sceneHeight)
-    {
-        transform.position = new Vector3(sceneCenter.x, sceneCenter.y, transform.position.z);
-
-        width = sceneWidth;
-        height = sceneHeight;
-
-        if (backgroundRain != null)
-        {
-            backgroundRain.width = width;
-            backgroundRain.height = height;
-        }
-        if (foregroundRain != null)
-        {
-            foregroundRain.width = width;
-            foregroundRain.height = height;
-        }
-        if (splashRain != null)
-        {
-            ParticleSystem.ShapeModule shape = splashRain.shape;
-            shape.scale = new Vector3(width, height, 1f);
-        }
-
-        // 这两个叠加层是"铺满相机视野"的，拼接时会盖住另一个场景，关掉。
-        if (tintOverlay != null) tintOverlay.gameObject.SetActive(false);
-        if (lightningOverlay != null) lightningOverlay.gameObject.SetActive(false);
-    }
-
-    /// <summary>
     /// NPC 行动拼接阶段：雨铺满整个拼接场景（宽度变宽、雨量按比例加），
     /// 但在一楼那半边的「盖子」以下不显示雨 —— 看起来就是雨落在盖子上。
     /// 雷 / 色调叠加层挂在对准整个拼接场景的相机下，所以会覆盖全场景。

@@ -17,13 +17,6 @@ public class GameClockUI : MonoBehaviour
 
     private float elapsedSeconds;
 
-    /// <summary>把时钟拨回 0。</summary>
-    public void ResetClock()
-    {
-        elapsedSeconds = 0f;
-        Apply();
-    }
-
     /// <summary>由 PauseButtonHUD 每帧告知：现在算不算在计时。</summary>
     public void Tick(bool counting, float deltaSeconds)
     {

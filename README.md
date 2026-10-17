@@ -1,122 +1,90 @@
-# yuying
+# 余音 / yuying
 
-`yuying` 是一个使用 Unity 制作的单机独立游戏项目。
+Unity 单机叙事游戏。当前可玩的 Demo 在 `scenes-and-rain-demo` 分支。
 
 ## 开发环境
 
 - Unity Editor：`2022.3.62f3`
 - 版本控制：Git + Git LFS
 - 远程仓库：<https://github.com/502jsui/yuying>
+- 当前开发分支：`scenes-and-rain-demo`
 
 ## 首次获取项目
 
-1. 先接受仓库管理员发送的 GitHub 协作者邀请。
+1. 接受仓库协作者邀请。
 2. 安装 [Git LFS](https://git-lfs.com/)。
-3. 在终端执行：
+3. 克隆时直接切到开发分支：
 
    ```bash
    git lfs install
-   git clone https://github.com/502jsui/yuying.git
+   git clone -b scenes-and-rain-demo https://github.com/502jsui/yuying.git
    ```
 
-4. 在 Unity Hub 中打开克隆后的目录。
-5. 使用 Unity `2022.3.62f3` 打开项目，等待包和资源导入完成。
-6. 打开 `Assets/Scenes/SampleScene.unity`，确认编辑器控制台没有报错。
+4. 用 Unity Hub 添加该目录，使用 Unity `2022.3.62f3` 打开，等待导入完成。
+5. 打开 `Assets/Scenes/MainMenu.unity`，确认 Console 没有报错。
 
-## 使用 GitHub Desktop 提交项目
+## 场景与操作
 
-以下流程推荐队友日常使用。请始终通过功能分支和 Pull Request 修改项目，不要直接向 `main` 提交。
+| 场景 | 用途 |
+| --- | --- |
+| `MainMenu` | 启动场景（Build Settings 第 0 个） |
+| `FirstFloor` / `Backyard` | 游戏场景，可来回切换 |
+| `Pause` | 暂停界面（背景是暂停瞬间的截图） |
+| `Settings` / `Credits` | 设置 / 制作名单 |
 
-### 准备工作
+| 操作 | 按键 |
+| --- | --- |
+| 移动 | `A` / `D` 或左右方向键 |
+| 触碰物品 / 住户 | `E` |
+| 场景门口切换 | `F`（站在门范围内才生效） |
+| 独白逐句推进 / 跳过当前句 | `Space` |
+| 暂停 | `Esc` |
+| 调试面板 | `F1` |
 
-1. 接受 GitHub 协作者邀请。
-2. 安装 [GitHub Desktop](https://desktop.github.com/) 和 [Git LFS](https://git-lfs.com/)。
-3. 安装完成后重新打开 GitHub Desktop，并登录自己的 GitHub 账号。
-4. 确保电脑已安装 Unity `2022.3.62f3`。如果版本不同，先通过 Unity Hub 安装对应版本。
+## 代码地图
 
-### 第一次下载仓库
+| 文件 | 职责 |
+| --- | --- |
+| `Assets/Scripts/Core/GameRoot.cs` | 常驻服务根：配置、本局数据、系统初始化 |
+| `Assets/Scripts/Core/GameFlow.cs` | 顶层状态 + 每轮五阶段的时间轴 |
+| `Assets/Scripts/Core/GameSession.cs` | 一局数据（住户 / 物品 / 轮次 / 次数） |
+| `Assets/Scripts/Core/ItemSystem.cs` | 物品池、温度、玩家触碰、区域占用 |
+| `Assets/Scripts/Core/NpcSystem.cs` | 住户行动决策、拿取 / 交流 / 移动、回家判定 |
+| `Assets/Scripts/Core/StatSettlement.cs` | 暖意 / 知晓的唯一加减出口 |
+| `Assets/Scripts/Views/` | 场景表现：相机、玩家、物品、住户、雨、提示条 |
+| `Assets/Scripts/UI/` | 主菜单、设置、暂停 HUD 等 UI 转发 |
+| `Assets/Scripts/Editor/` | 场景 / 美术 / 配置生成、自检、结局分布模拟 |
 
-1. 在 GitHub Desktop 中选择 `File` → `Clone repository`。
-2. 打开 `URL` 标签，填写：
+更细的说明看 `Docs/`：`数据流.md`、`框架说明.md`、`物品系统说明.md`、
+`NPC系统说明.md`、`数值结算与玩家操作.md`、`暂停说明.md`、`UI界面说明.md`。
 
-   ```text
-   https://github.com/502jsui/yuying.git
-   ```
+## 开发工具
 
-3. `Local path` 建议选择不包含中文且空间充足的目录，例如：
+- 游戏内 `F1`：查看数值 / 强制推进阶段 / 保存与读取调试快照。
+- `Tools → 余音 → 自检`：只读检查 Build Settings、配置、预制体、场景接线。
+- `Tools → 余音 → 结局分布模拟`：无画面跑多局，输出结局分布。
 
-   ```text
-   E:\UnityProjects\yuying
-   ```
+批处理示例（按需替换 Unity 路径）：
 
-4. 点击 `Clone`，等待仓库和 Git LFS 素材下载完成。
-5. 在 Unity Hub 中点击 `Add project from disk`，选择刚下载的 `yuying` 目录。
-6. 使用 Unity `2022.3.62f3` 打开项目，并确认 `Assets/Scenes/SampleScene.unity` 可以正常加载。
+```powershell
+# EditMode 测试
+Unity.exe -batchmode -nographics -projectPath "E:\unity\咕咕嘎嘎" `
+  -runTests -testPlatform EditMode -testResults "edit-tests.xml"
 
-### 每次开始工作前同步
+# PlayMode 测试
+Unity.exe -batchmode -nographics -projectPath "E:\unity\咕咕嘎嘎" `
+  -runTests -testPlatform PlayMode -testResults "play-tests.xml"
 
-1. 在 GitHub Desktop 顶部点击 `Fetch origin`。
-2. 如果出现 `Pull origin` 按钮，点击它，将队友已经合并到 `main` 的内容同步到本地。
-3. 切换分支、拉取或合并前，先关闭 Unity，避免资源文件和缓存被占用。
-4. 同步完成后再打开 Unity 开始工作。
-
-### 创建自己的功能分支
-
-1. 确认 `Current branch` 是 `main`，并且已经完成同步。
-2. 点击 `Current branch` → `New branch`。
-3. 根据工作内容命名分支：
-   - 新功能：`feat/功能名`
-   - 修复问题：`fix/问题名`
-   - 美术素材：`art/素材名`
-   - 文档修改：`docs/文档名`
-4. 点击 `Create branch`，后续修改都提交到这个分支。
-
-### 在 Unity 中修改并提交
-
-1. 在 Unity 中完成工作，确认控制台没有报错，并运行受影响的场景。
-2. 提交前保存场景，然后关闭 Unity。
-3. 回到 GitHub Desktop，在 `Changes` 中检查准备提交的文件。
-4. 确认没有选择 `Library`、`Temp`、`Logs`、`UserSettings`、`Build` 或 `Builds` 等目录。
-5. 在左下角填写简短的 `Summary`，例如：
-
-   ```text
-   feat: 添加角色移动
-   ```
-
-6. 需要时补充 `Description`，然后点击 `Commit to 分支名`。
-7. 点击 `Push origin`，把提交上传到 GitHub。
-
-### 创建 Pull Request
-
-1. 分支成功推送后，在 GitHub Desktop 点击 `Create Pull Request`。
-2. 确认 `base` 是 `main`，`compare` 是自己的功能分支。
-3. 填写标题和修改说明，例如做了什么、测试了什么、还遗留什么问题。
-4. 点击创建 Pull Request，并通知队友检查。
-5. 如果队友要求修改，继续在自己的分支中提交并点击 `Push origin`；Pull Request 会自动更新。
-6. Pull Request 合并后，切回 `main`，点击 `Fetch origin` 和 `Pull origin` 获取最新版本。
-
-### 重要注意事项
-
-- 不要直接向 `main` 提交，也不要使用 `Publish repository`；本项目已经有远程仓库。
-- 不要提交 `Library`、`Temp`、`Logs`、`UserSettings`、构建产物或 IDE 临时文件。
-- 图片、音频、模型、视频和字体等大文件由 Git LFS 管理；安装 Git LFS 后正常提交即可。
-- 修改 `.unity`、`.prefab` 或 `.asset` 文件前尽量先同步，避免两人同时修改同一资源。
-- 如果 GitHub Desktop 提示场景或预制体冲突，不要随意选择整份文件覆盖，先联系另一名队友确认修改内容。
-- 不确定文件是否可以提交时，先暂停并询问仓库管理员。
+# 场景接线自检
+Unity.exe -batchmode -nographics -quit -projectPath "E:\unity\咕咕嘎嘎" `
+  -executeMethod YuyinSelfCheckTool.RunFromCommandLine
+```
 
 ## 协作流程
 
-- `main` 是稳定分支，始终保持可以打开和运行。
-- 开发前先从最新的 `main` 创建功能分支：
-  - `feat/功能名`
-  - `fix/问题名`
-  - `art/素材名`
-  - `docs/文档名`
-- 完成后提交并推送功能分支，然后在 GitHub 创建 Pull Request。
-- 合并前至少确认 Unity 控制台无错误，并运行受影响的场景。
-- 不要提交 `Library`、`Temp`、`Logs`、`UserSettings` 或构建产物。
-- 美术、音频、模型、视频和字体等大文件由 Git LFS 管理。
-
-## 当前范围
-
-项目当前保留 Unity 示例场景和默认产品名 `My project`，GitHub 仓库名及项目代号为 `yuying`。
+- 功能分支从 `scenes-and-rain-demo` 切出（`feat/*`、`fix/*`、`art/*`、`docs/*`），完成后向该分支提 Pull Request。
+- `main` 只作为历史稳定分支，不直接在上面开发。
+- 提交前关闭 Unity，确认 Console 无报错，并运行受影响的场景 / 测试。
+- 不要提交 `Library`、`Temp`、`Logs`、`UserSettings`、构建产物或 IDE 临时文件。
+- `Assets/Unity.VisualScripting.Generated/` 是 Unity 生成物，已在 `.gitignore` 中忽略。
+- 图片、音频、模型、视频和字体由 Git LFS 管理。

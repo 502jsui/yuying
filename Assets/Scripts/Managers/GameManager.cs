@@ -130,9 +130,4 @@ public class GameManager : MonoBehaviour
         return result;
     }
 
-    public ResidentData GetResidentData(ResidentId id)
-    {
-        GameRoot root = GameRoot.Instance;
-        return root != null && root.Session != null ? root.Session.GetResident(id) : null;
-    }
 }

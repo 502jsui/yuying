@@ -22,7 +22,6 @@
 | `Assets/Scripts/UI/ButtonHoverScale.cs` | 悬停放大效果（**矩形判定，不依赖 Raycast Target**） |
 | `Assets/Scripts/UI/PauseButtonHUD.cs` | 游戏内暂停时钟的**运行时挂载**（见第五节） |
 | `Assets/Scripts/UI/GameClockUI.cs` | 暂停时钟的两根指针 |
-| `Assets/Scripts/Audio/BGMManager.cs` | 主菜单 BGM（早期实现，现由 `AudioManager` 接管） |
 | `Assets/Resources/UI/PauseButtonHUD.prefab` | 暂停时钟预制件（Canvas + 圆盘 + 分针 + 秒针） |
 
 ## 三、和程序的接口
@@ -174,7 +173,7 @@ Canvas Scaler
 ### ✅ UI 侧可以自由改
 - `Assets/Scenes/MainMenu.unity`、`Settings.unity`、`Credits.unity`
 - `Assets/Scenes/Pause.unity` ← 程序侧邀请 UI 在此加界面（见《暂停说明》）
-- `Assets/Scripts/UI/*`、`Assets/Scripts/Audio/BGMManager.cs`
+- `Assets/Scripts/UI/*`
 - `Assets/Resources/UI/*`、`Assets/Fonts/*`、`Assets/TextMesh Pro/*`
 
 ### ⚠️ 共享文件 —— 改完必须告知程序侧

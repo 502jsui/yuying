@@ -16,10 +16,6 @@ public class GameConfig : ScriptableObject
     [Header("阈值")]
     public float highThreshold = 60f;
     public float maxStatValue = 100f;
-    public float doorSeamWarmth = 30f;
-    public float doorHalfWarmth = 55f;
-    public float lightWhiteAwareness = 30f;
-    public float lightYellowAwareness = 54f;
 
     [Header("母亲")]
     [Tooltip("母亲是否参与本局。本次 Demo 关掉它：没人会去找她、她不会开门，结局只走「母亲低」的四档。")]
@@ -94,7 +90,6 @@ public class GameConfig : ScriptableObject
     [Header("音频（可留空）")]
     public AudioClip rainLoop;
     public AudioClip musicLoop;
-    public AudioClip uiClick;
 
     [Tooltip("进游戏是否自动循环播放 musicLoop。如果有别的 BGM 控制器接管，把它关掉。")]
     public bool autoPlayMusicOnStart = true;

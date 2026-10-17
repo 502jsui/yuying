@@ -50,6 +50,9 @@ public class SimulationTuning
     [Tooltip("只改母亲的初始知晓度（填了就覆盖 initialAwareness 对她的作用）。")]
     public float? motherInitialAwareness;
 
+    [Tooltip("每轮玩家能碰几次（默认沿用 GameConfig.touchesPerRound）。")]
+    public int? touchesPerRound;
+
     public bool IsEmpty
     {
         get
@@ -59,7 +62,8 @@ public class SimulationTuning
                 && !absentRoundChance.HasValue && !itemTakenWithTemperatureWarmth.HasValue
                 && !itemTakenWithTemperatureAwareness.HasValue && !itemTakenWithoutTemperatureAwareness.HasValue
                 && !talkWarmth.HasValue && !talkAwareness.HasValue && !talkMotherAwareness.HasValue
-                && !girlMoveWarmth.HasValue && !initialAwareness.HasValue && !motherInitialAwareness.HasValue;
+                && !girlMoveWarmth.HasValue && !initialAwareness.HasValue && !motherInitialAwareness.HasValue
+                && !touchesPerRound.HasValue;
         }
     }
 
@@ -99,6 +103,8 @@ public class SimulationTuning
                 }
             }
         }
+
+        if (touchesPerRound.HasValue) config.touchesPerRound = Mathf.Max(1, touchesPerRound.Value);
     }
 
     /// <summary>列出这次覆盖了哪些参数，方便把结果对上配置。</summary>
@@ -121,6 +127,7 @@ public class SimulationTuning
         Add(lines, "girlMoveWarmth", girlMoveWarmth);
         Add(lines, "initialAwareness", initialAwareness);
         Add(lines, "motherInitialAwareness", motherInitialAwareness);
+        if (touchesPerRound.HasValue) lines.Add("touchesPerRound=" + touchesPerRound.Value);
         return lines;
     }
 
@@ -405,6 +412,8 @@ public class SimulationReport
 /// 所以跑出来的结局分布就是当前数值下的真实分布。
 ///
 /// 命令行入口在 Editor/YuyinSimulatorTool.cs。
+///
+/// 谁在用：YuyinSimulatorTool（菜单 / 批处理）、GameSimulatorTests。不参与运行时游戏。
 /// </summary>
 public static class GameSimulator
 {
@@ -624,7 +633,7 @@ public static class GameSimulator
 
         StatSettlement stats = new StatSettlement(config, session);
         ItemSystem items = new ItemSystem(config, random, session, null, stats);
-        NpcSystem npc = new NpcSystem(config, random, session, items, null, stats);
+        NpcSystem npc = new NpcSystem(config, random, session, items, stats);
         items.InitializeFromConfig();
         session.isRunning = true;
 
@@ -661,7 +670,7 @@ public static class GameSimulator
                 items.EnsureSceneItems(session.playerArea, config.sceneItemCount);
 
                 // 玩家输入：一轮只能碰一次。
-                PlayPlayerTurn(options, random, session, items, counters, trace);
+                PlayPlayerTurn(config, options, random, session, items, counters, trace);
 
                 // ③ 物品结算：温度在触摸时就标好了，这一步在逻辑上没有额外动作。
 
@@ -725,9 +734,14 @@ public static class GameSimulator
     /// 玩家这一轮的动作：碰一件自己区域里还没有温度的东西；
     /// 区域被「区域持续」的住户占着时，按策略选择放弃或强行触碰。
     /// </summary>
-    private static void PlayPlayerTurn(SimulationOptions options, RandomService random, GameSession session,
-        ItemSystem items, SimCounters counters, List<string> trace)
+    private static void PlayPlayerTurn(GameConfig config, SimulationOptions options, RandomService random,
+        GameSession session, ItemSystem items, SimCounters counters, List<string> trace)
     {
+        // 一轮能碰几次由 GameConfig.touchesPerRound 决定（默认 1）。
+        int allowed = Mathf.Max(1, config != null ? config.touchesPerRound : 1);
+        int used = 0;
+
+        // ① 区域被「区域持续」的住户占着：按策略放弃，或者一直按到强碰生效。
         AreaId area = session.playerArea;
         ResidentId blocker;
         ResidentData blocking = items.TryGetBlockedResident(area, out blocker) ? session.GetResident(blocker) : null;
@@ -746,35 +760,42 @@ public static class GameSimulator
                 ItemActionResult result = items.TouchResident(blocker);
                 RecordTouch(result, counters);
                 if (trace != null) trace.Add("玩家：" + DescribeTouch(result, null, blocker));
-                if (result.ChangedState) return;
-                if (result.status != ItemActionStatus.ForceTouchWarned) return;
+                if (result.ChangedState) { used++; break; }
+                if (result.status != ItemActionStatus.ForceTouchWarned) break;
                 if (!items.TryGetBlockedResident(area, out blocker)) break;
             }
-            return;
         }
 
-        List<ItemData> candidates = new List<ItemData>();
-        List<ItemData> inScene = items.GetSceneItems(area);
-        for (int i = 0; i < inScene.Count; i++)
+        // ② 剩下的次数碰本区域里还没有温度的东西。
+        while (used < allowed)
         {
-            ItemData item = inScene[i];
-            if (item.isReturned || item.hasTemperature) continue;
-            candidates.Add(item);
+            List<ItemData> candidates = new List<ItemData>();
+            List<ItemData> inScene = items.GetSceneItems(session.playerArea);
+            for (int i = 0; i < inScene.Count; i++)
+            {
+                ItemData item = inScene[i];
+                if (item.isReturned || item.hasTemperature) continue;
+                candidates.Add(item);
+            }
+
+            bool touched = false;
+            while (candidates.Count > 0)
+            {
+                ItemData pick = random.Pick(candidates);
+                candidates.Remove(pick);
+
+                ItemActionResult result = items.Touch(pick.itemId);
+                RecordTouch(result, counters);
+                if (trace != null) trace.Add("玩家：" + DescribeTouch(result, pick, ResidentId.Girl));
+                if (result.ChangedState) { touched = true; break; }
+                if (result.status == ItemActionStatus.ForceTouchWarned) break;
+            }
+
+            if (!touched) break;
+            used++;
         }
 
-        while (candidates.Count > 0)
-        {
-            ItemData pick = random.Pick(candidates);
-            candidates.Remove(pick);
-
-            ItemActionResult result = items.Touch(pick.itemId);
-            RecordTouch(result, counters);
-            if (trace != null) trace.Add("玩家：" + DescribeTouch(result, pick, ResidentId.Girl));
-            if (result.ChangedState) return;
-            if (result.status == ItemActionStatus.ForceTouchWarned) return;
-        }
-
-        if (trace != null) trace.Add("玩家：本区域没有可碰的东西，这一轮没碰。");
+        if (used == 0 && trace != null) trace.Add("玩家：本区域没有可碰的东西，这一轮没碰。");
     }
 
     private static void RunNpcActions(NpcSystem npc, SimCounters counters)

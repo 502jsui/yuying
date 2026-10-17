@@ -47,14 +47,4 @@ public static class TurnRules
         return TryPickWhoStaysOut(random, residents, out absent);
     }
 
-    public static bool IsHighValue(float value, GameConfig config)
-    {
-        return value > config.highThreshold;
-    }
-
-    /// <summary>行动阶段是否应该跳过（母亲不行动）。</summary>
-    public static bool CanResidentAct(ResidentData resident)
-    {
-        return resident != null && resident.canAct;
-    }
 }

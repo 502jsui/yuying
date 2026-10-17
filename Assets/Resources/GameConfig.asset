@@ -16,10 +16,7 @@ MonoBehaviour:
   touchesPerRound: 1
   highThreshold: 60
   maxStatValue: 100
-  doorSeamWarmth: 30
-  doorHalfWarmth: 55
-  lightWhiteAwareness: 30
-  lightYellowAwareness: 54
+  motherEnabled: 1
   motherInitialWarmth: 30
   motherInitialAwareness: 30
   motherOpenAwareness: 60
@@ -139,4 +136,4 @@ MonoBehaviour:
     startPlacementId: 
   rainLoop: {fileID: 8300000, guid: 3b881426874195141a505e1049561498, type: 3}
   musicLoop: {fileID: 8300000, guid: 19a8cc86749450045816c86bd32bb8a1, type: 3}
-  uiClick: {fileID: 0}
+  autoPlayMusicOnStart: 1

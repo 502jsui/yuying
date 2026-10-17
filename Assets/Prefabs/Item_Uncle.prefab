@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 5934641385650503438}
   - component: {fileID: 3270860976268645869}
   m_Layer: 8
-  m_Name: Item_Aunt
+  m_Name: Item_Uncle
   m_TagString: Item
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

@@ -9,8 +9,6 @@ public class ResidentData
     public float awareness;
     public bool hasAwareness;
 
-    public List<ItemData> itemPool = new List<ItemData>();
-
     public int actionMin = 2;
     public int actionMax = 3;
 
@@ -69,15 +67,6 @@ public class ResidentData
         isHome = home;
         isOut = false;
         actionsTakenThisRound = 0;
-    }
-
-    /// <summary>本轮的可用行动次数（闭区间 [actionMin, actionMax]）。</summary>
-    public int RollActionCount(System.Random rng)
-    {
-        if (!canAct) return 0;
-        int span = actionMax - actionMin;
-        if (span <= 0) return actionMin;
-        return actionMin + rng.Next(span + 1);
     }
 
     /// <summary>

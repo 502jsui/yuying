@@ -52,8 +52,4 @@ public static class SessionStore
         }
     }
 
-    public static void Delete()
-    {
-        if (HasSave) File.Delete(SavePath);
-    }
 }

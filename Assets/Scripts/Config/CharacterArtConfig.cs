@@ -28,17 +28,6 @@ public class CharacterArtEntry
 
     public bool HasArt { get { return sprite != null; } }
 
-    public void CopyFrom(CharacterArtEntry other)
-    {
-        if (other == null) return;
-        sprite = other.sprite;
-        height = other.height;
-        footOffsetY = other.footOffsetY;
-        sortingOrder = other.sortingOrder;
-        flipWithMovement = other.flipWithMovement;
-        tintByWarmth = other.tintByWarmth;
-    }
-
     /// <summary>立绘在世界里的尺寸（宽按图片比例算）。没有美术时返回占位条尺寸。</summary>
     public Vector2 ResolveWorldSize(float placeholderWidth)
     {

@@ -61,7 +61,7 @@ public class GameRoot : MonoBehaviour
         Items = new ItemSystem(Config, Random, Session, Flow, Stats);
         Flow.AttachItemSystem(Items);
 
-        Npc = new NpcSystem(Config, Random, Session, Items, Flow, Stats);
+        Npc = new NpcSystem(Config, Random, Session, Items, Stats);
         gameObject.AddComponent<SceneStitcher>();
         NpcPhaseDriver npcDriver = gameObject.AddComponent<NpcPhaseDriver>();
         npcDriver.Initialize(Npc, Flow, Config);
