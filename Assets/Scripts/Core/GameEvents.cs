@@ -8,13 +8,6 @@ public struct GameStateChangedEvent
     public GameState current;
 }
 
-public struct TurnPhaseChangedEvent
-{
-    public int round;
-    public TurnPhase previous;
-    public TurnPhase current;
-}
-
 public struct RoundStartedEvent
 {
     public int round;
@@ -29,55 +22,15 @@ public struct RoundEndedEvent
     public bool hasAbsentResident;
 }
 
-/// <summary>场景状态阶段：本轮场上有哪些物品（会随机补几件）。</summary>
-public struct SceneStatePhaseEvent
-{
-    public int round;
-    public AreaId area;
-    public int placedItems;
-}
-
 public struct GameOverEvent
 {
     public GameSession session;
-}
-
-/// <summary>玩家输入阶段开始，UI 可以提示“去碰一样东西”。</summary>
-public struct PlayerInputPhaseEvent
-{
-    public int round;
-}
-
-/// <summary>物品状态结算阶段开始（温度 / 状态已结算完），表现层可以在这里刷微光、门光。</summary>
-public struct ItemSettlePhaseEvent
-{
-    public int round;
 }
 
 /// <summary>NPC 行动阶段开始，相机应拉远、玩家移动应被锁住。</summary>
 public struct NpcActionPhaseEvent
 {
     public int round;
-}
-
-/// <summary>玩家移动开关变化。</summary>
-public struct PlayerMoveLockEvent
-{
-    public bool locked;
-}
-
-public struct WarmthChangedEvent
-{
-    public ResidentId id;
-    public float previous;
-    public float current;
-}
-
-public struct AwarenessChangedEvent
-{
-    public ResidentId id;
-    public float previous;
-    public float current;
 }
 
 public struct ItemTouchedEvent
@@ -122,6 +75,14 @@ public struct InteractHintEvent
 {
     public bool available;
     public string itemId;
+    public string text;
+}
+
+/// <summary>玩家身边有没有可以按 F 切换的场景门（提示文案由发布方给）。</summary>
+public struct PortalHintEvent
+{
+    public bool available;
+    public string text;
 }
 
 /// <summary>强行触碰不可用区域，但还在警告阶段时发出。</summary>
@@ -163,11 +124,6 @@ public struct NpcActionEvent
     public bool motherKnock;
 }
 
-public struct DebugLogEvent
-{
-    public string message;
-}
-
 /// <summary>住户开门 / 关门（现有的 NpcMovedEvent 分不出开还是关）。</summary>
 public struct NpcDoorEvent
 {
@@ -194,4 +150,10 @@ public struct NarrationEvent
     public string text;
     public NarrationPriority priority;
     public float holdSeconds;
+}
+
+/// <summary>清掉当前提示条（跳过独白时用）；优先级相同或更低的那条会被清掉。</summary>
+public struct NarrationClearEvent
+{
+    public NarrationPriority priority;
 }

@@ -132,7 +132,6 @@ public static class YuyinSceneBuilder
         CharacterArtApplier.ApplyPlayer(player, CharacterArtConfig.Load());
 
         PlayerController controller = player.GetComponent<PlayerController>();
-        if (controller != null) controller.itemLayer = 1 << 8;
 
         SceneBounds2D bounds = player.AddComponent<SceneBounds2D>();
         bounds.target = player.transform;

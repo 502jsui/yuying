@@ -12,6 +12,9 @@ public static class NarrationState
     /// <summary>开场序列是否还在跑（调试 / 测试用）。</summary>
     public static bool IsIntroPlaying { get; private set; }
 
+    /// <summary>触碰旁白（B1/B2 + 物品独白）是否还在播。NPC 阶段要等它结束再拉镜头。</summary>
+    public static bool IsTouchNarrationPlaying { get; private set; }
+
     public static void SetBlockingInput(bool value)
     {
         IsBlockingInput = value;
@@ -22,10 +25,16 @@ public static class NarrationState
         IsIntroPlaying = value;
     }
 
+    public static void SetTouchNarrationPlaying(bool value)
+    {
+        IsTouchNarrationPlaying = value;
+    }
+
     public static void Reset()
     {
         IsBlockingInput = false;
         IsIntroPlaying = false;
+        IsTouchNarrationPlaying = false;
     }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]

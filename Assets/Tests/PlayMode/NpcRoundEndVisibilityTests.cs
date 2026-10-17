@@ -53,6 +53,7 @@ public class NpcRoundEndVisibilityTests
 
         EventBus.Subscribe(counter);
         GameRoot.Instance.Flow.RegisterPlayerTouch("round_end_visibility_test");
+        GameRoot.Instance.Narration.FinishTouchNarration();
 
         yield return WaitUntil(delegate { return GameRoot.Instance.Flow.Phase == TurnPhase.NpcAction; }, 10f);
 

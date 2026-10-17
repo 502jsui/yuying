@@ -9,9 +9,6 @@ public class PlayerController : MonoBehaviour
     [Tooltip("触碰范围只看左右（横向），高度不限制。")]
     public float interactRadius = 1.2f;
 
-    [Tooltip("旧字段，保留兼容；实际按场景里的 ItemView 判定。")]
-    public LayerMask itemLayer;
-
     [Header("脚步")]
     [Tooltip("每走这么多世界单位播一次脚步。")]
     public float footstepInterval = 1.6f;
@@ -104,7 +101,6 @@ public class PlayerController : MonoBehaviour
 
         if (Mathf.Abs(dx) > 0f)
         {
-            MarkFirstMove(root);
             TickFootstep(root, Mathf.Abs(dx));
         }
 
@@ -138,13 +134,6 @@ public class PlayerController : MonoBehaviour
             // 什么都没碰到：给兜底提示（D1 / D2 / D3）
             ShowStuckHint(root);
         }
-    }
-
-    private void MarkFirstMove(GameRoot root)
-    {
-        if (root == null || root.Session == null) return;
-        if (root.Session.tutorialFirstMoveDone) return;
-        root.Session.tutorialFirstMoveDone = true;
     }
 
     private void TickFootstep(GameRoot root, float distance)
@@ -331,7 +320,8 @@ public class PlayerController : MonoBehaviour
         EventBus.Publish(new InteractHintEvent
         {
             available = available,
-            itemId = null
+            itemId = null,
+            text = "按 E 触碰"
         });
     }
 }

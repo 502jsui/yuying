@@ -10,15 +10,15 @@ using UnityEngine;
 [DefaultExecutionOrder(1000)]
 public class PromptOverlay : MonoBehaviour
 {
-    [Tooltip("holdSeconds <= 0 的句子（比如 A2）没有时长，一直显示到被下一条替换。")]
-    public float defaultHoldSeconds = 2f;
-
     private string message;
     private float hideAt;          // > 0 = 到点消失；<= 0 = 一直显示
     private NarrationPriority messagePriority;
     private GUIStyle style;
     private GUIStyle hintStyle;
     private bool interactAvailable;
+    private string interactText;
+    private bool portalAvailable;
+    private string portalText;
 
     public string CurrentMessage { get { return message; } }
     public NarrationPriority CurrentPriority { get { return messagePriority; } }
@@ -26,18 +26,37 @@ public class PromptOverlay : MonoBehaviour
     private void OnEnable()
     {
         EventBus.Subscribe<NarrationEvent>(OnNarration);
+        EventBus.Subscribe<NarrationClearEvent>(OnNarrationClear);
         EventBus.Subscribe<InteractHintEvent>(OnInteractHint);
+        EventBus.Subscribe<PortalHintEvent>(OnPortalHint);
     }
 
     private void OnDisable()
     {
         EventBus.Unsubscribe<NarrationEvent>(OnNarration);
+        EventBus.Unsubscribe<NarrationClearEvent>(OnNarrationClear);
         EventBus.Unsubscribe<InteractHintEvent>(OnInteractHint);
+        EventBus.Unsubscribe<PortalHintEvent>(OnPortalHint);
     }
 
     private void OnInteractHint(InteractHintEvent evt)
     {
         interactAvailable = evt.available;
+        interactText = evt.text;
+    }
+
+    private void OnPortalHint(PortalHintEvent evt)
+    {
+        portalAvailable = evt.available;
+        portalText = evt.text;
+    }
+
+    private void OnNarrationClear(NarrationClearEvent evt)
+    {
+        if (string.IsNullOrEmpty(message)) return;
+        if (messagePriority > evt.priority) return;
+        message = null;
+        messagePriority = NarrationPriority.Monologue;
     }
 
     private void OnNarration(NarrationEvent evt)
@@ -101,7 +120,7 @@ public class PromptOverlay : MonoBehaviour
 
     private void DrawInteractHint()
     {
-        if (!interactAvailable) return;
+        if (!interactAvailable && !portalAvailable) return;
 
         if (hintStyle == null)
         {
@@ -111,7 +130,15 @@ public class PromptOverlay : MonoBehaviour
             hintStyle.normal.textColor = new Color(1f, 1f, 1f, 0.85f);
         }
 
+        string text = "";
+        if (interactAvailable && !string.IsNullOrEmpty(interactText)) text = interactText;
+        if (portalAvailable && !string.IsNullOrEmpty(portalText))
+        {
+            text = string.IsNullOrEmpty(text) ? portalText : text + "　·　" + portalText;
+        }
+        if (string.IsNullOrEmpty(text)) return;
+
         Rect rect = new Rect(0f, Screen.height - 60f, Screen.width, 30f);
-        GUI.Label(rect, "按 E 触碰", hintStyle);
+        GUI.Label(rect, text, hintStyle);
     }
 }

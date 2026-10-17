@@ -11,9 +11,21 @@ public class NarrationDirector : MonoBehaviour
     /// <summary>D1「得走近一点」的冷却时间：避免边走边被念。</summary>
     public float d1CooldownSeconds = 30f;
 
+    [Header("独白推进")]
+    [Tooltip("触碰旁白一句一按：按一下结束当前句，进入下一句。")]
+    public KeyCode skipKey = KeyCode.Space;
+
     private GameText text;
     private GameSession session;
     private float lastD1Time = -999f;
+    private Coroutine touchRoutine;
+    private bool advanceRequested;
+
+    private void Update()
+    {
+        if (touchRoutine == null || IsPaused) return;
+        if (Input.GetKeyDown(skipKey)) SkipCurrentLine();
+    }
 
     private void OnEnable()
     {
@@ -27,6 +39,8 @@ public class NarrationDirector : MonoBehaviour
 
     private void OnDisable()
     {
+        FinishTouchNarration();
+
         EventBus.Unsubscribe<ItemTouchedEvent>(OnItemTouched);
         EventBus.Unsubscribe<ItemPromptEvent>(OnItemPrompt);
         EventBus.Unsubscribe<ForceTouchWarnedEvent>(OnForceTouchWarned);
@@ -100,29 +114,98 @@ public class NarrationDirector : MonoBehaviour
 
         // B：第一次触碰先讲玩法，讲完再补这件物品的独白（只出一次）
         GameSession current = Session;
+        bool firstTouch = false;
         if (current != null && !current.tutorialFirstTouchDone)
         {
             current.tutorialFirstTouchDone = true;
-            StartCoroutine(FirstTouchRoutine(evt.itemId));
-            return;
+            firstTouch = true;
         }
 
-        // 物品独白：每次触碰都播（按 itemId）
-        ShowLine(source.ItemMonologueFor(evt.itemId), NarrationPriority.Monologue, 2.5f);
+        StartTouchNarration(evt.itemId, firstTouch);
     }
 
-    private IEnumerator FirstTouchRoutine(string itemId)
+    /// <summary>整段触碰旁白播完（或跳过）后放行；NPC 阶段靠这个等镜头拉远。</summary>
+    public void FinishTouchNarration()
+    {
+        if (touchRoutine != null)
+        {
+            StopCoroutine(touchRoutine);
+            touchRoutine = null;
+        }
+
+        advanceRequested = false;
+        NarrationState.SetTouchNarrationPlaying(false);
+    }
+
+    /// <summary>Space：结束当前句，进入下一句。</summary>
+    public void SkipCurrentLine()
+    {
+        if (touchRoutine == null) return;
+        advanceRequested = true;
+    }
+
+    private void StartTouchNarration(string itemId, bool firstTouch)
+    {
+        if (touchRoutine != null) StopCoroutine(touchRoutine);
+
+        advanceRequested = false;
+        NarrationState.SetTouchNarrationPlaying(true);
+        touchRoutine = StartCoroutine(TouchNarrationRoutine(itemId, firstTouch));
+    }
+
+    private IEnumerator TouchNarrationRoutine(string itemId, bool firstTouch)
     {
         GameText source = Text;
-        if (source == null) yield break;
 
-        ShowLine(source.tutorialB1, NarrationPriority.Tutorial, 2f);
-        yield return new WaitForSecondsRealtime(2f);
+        if (firstTouch)
+        {
+            yield return ShowSkippable(source != null ? source.tutorialB1 : null, NarrationPriority.Tutorial, 2f);
+            yield return ShowSkippable(source != null ? source.tutorialB2 : null, NarrationPriority.Tutorial, 2.5f);
+        }
 
-        ShowLine(source.tutorialB2, NarrationPriority.Tutorial, 2.5f);
-        yield return new WaitForSecondsRealtime(2.5f);
+        yield return ShowSkippable(source != null ? source.ItemMonologueFor(itemId) : null, NarrationPriority.Monologue, 2.5f);
 
-        ShowLine(source.ItemMonologueFor(itemId), NarrationPriority.Monologue, 2.5f);
+        CompleteTouchNarration();
+    }
+
+    private IEnumerator ShowSkippable(string line, NarrationPriority priority, float seconds)
+    {
+        if (string.IsNullOrEmpty(line)) yield break;
+
+        ShowLine(line, priority, seconds);
+
+        float elapsed = 0f;
+        while (elapsed < Mathf.Max(0f, seconds))
+        {
+            if (!NarrationState.IsTouchNarrationPlaying) yield break;
+            if (IsPaused) { yield return null; continue; }
+
+            if (advanceRequested)
+            {
+                advanceRequested = false;
+                EventBus.Publish(new NarrationClearEvent { priority = priority });
+                yield break;
+            }
+
+            elapsed += Time.unscaledDeltaTime;
+            yield return null;
+        }
+    }
+
+    private void CompleteTouchNarration()
+    {
+        touchRoutine = null;
+        advanceRequested = false;
+        NarrationState.SetTouchNarrationPlaying(false);
+    }
+
+    private static bool IsPaused
+    {
+        get
+        {
+            GameRoot root = GameRoot.Instance;
+            return root != null && root.Flow != null && root.Flow.State == GameState.Paused;
+        }
     }
 
     private void OnItemPrompt(ItemPromptEvent evt)

@@ -94,21 +94,27 @@ public class SceneSwitchTests
         PlayerController player = Object.FindObjectOfType<PlayerController>();
         Assert.IsNotNull(player, "一楼应该有玩家。");
 
-        // 先站远一点，让传送门重新武装。
-        player.transform.position = new Vector3(3f, -2.4f, 0f);
+        // 开场独白期间不能按门，先跳过。
+        IntroNarration intro = Object.FindObjectOfType<IntroNarration>();
+        if (intro != null) intro.RequestSkip();
+        yield return WaitUntil(delegate { return !NarrationState.IsBlockingInput; }, 5f, "跳过开场");
+
+        ScenePortal2D portal = Object.FindObjectOfType<ScenePortal2D>();
+        Assert.IsNotNull(portal, "一楼应该有通往后院的场景门。");
+
+        // 走到门口：只应该出现提示，不能自动切场景。
+        player.transform.position = new Vector3(portal.transform.position.x - 1f, -2.4f, 0f);
         yield return null;
         yield return null;
+        Assert.AreEqual("FirstFloor", SceneManager.GetActiveScene().name, "只走近门口不应该自动切场景。");
 
-        // 一直往右走，走到一楼右边的传送门。
-        float elapsed = 0f;
-        while (SceneManager.GetActiveScene().name != "Backyard" && elapsed < 8f)
-        {
-            player.transform.position += new Vector3(0.12f, 0f, 0f);
-            elapsed += Time.deltaTime;
-            yield return null;
-        }
+        // 按 F（输入和测试共用 TryUsePortal）才切场景。
+        Assert.IsTrue(portal.TryUsePortal(), "按 F 才应该开始切场景。");
 
-        Assert.AreEqual("Backyard", SceneManager.GetActiveScene().name, "从一楼右边走进去应该切到后院。");
+        yield return WaitUntil(
+            delegate { return SceneManager.GetActiveScene().name == "Backyard"; },
+            8f,
+            "按 F 后切到后院");
 
         yield return WaitUntil(
             delegate { return !SceneTransitionState.IsLoading; },
@@ -144,6 +150,7 @@ public class SceneSwitchTests
             "一楼进入玩家输入");
 
         GameRoot.Instance.Flow.RegisterPlayerTouch("stitch_test");
+        GameRoot.Instance.Narration.FinishTouchNarration();
 
         yield return WaitUntil(
             delegate { return SceneStitcher.IsActive; },
@@ -153,6 +160,11 @@ public class SceneSwitchTests
         // 相机应该拉远到能同时看见两个场景（单场景是 5.4，两个是 ~10.8）。
         Camera camera = Camera.main;
         Assert.IsNotNull(camera, "应该有主相机。");
+        SceneCameraFollow2D framing = camera.GetComponent<SceneCameraFollow2D>();
+        yield return WaitUntil(
+            delegate { return framing != null && !framing.IsAnimating; },
+            5f,
+            "镜头拉远动画结束");
         Assert.Greater(camera.orthographicSize, 8f, "NPC 行动时相机要拉远看全两个场景。");
 
         // 拼接进来的后院场景里的 NPC View 必须绑到本局数据，否则看不到对面的行动。
@@ -177,63 +189,6 @@ public class SceneSwitchTests
             delegate { return GameRoot.Instance.Session.round == 2; },
             40f,
             "本轮 NPC 行动结束");
-    }
-
-    [UnityTest]
-    public IEnumerator Diagnostic_LogNpcPositions()
-    {
-        yield return null;
-
-        if (GameRoot.Instance == null)
-        {
-            GameObject rootObject = new GameObject("[GameRoot-Test]");
-            rootObject.AddComponent<GameRoot>();
-            yield return null;
-        }
-
-        AsyncOperation load = SceneManager.LoadSceneAsync("FirstFloor", LoadSceneMode.Single);
-        while (load != null && !load.isDone) yield return null;
-        yield return null;
-        yield return null;
-
-        yield return WaitUntil(
-            delegate { return GameRoot.Instance.Flow.Phase == TurnPhase.PlayerInput; },
-            10f,
-            "玩家输入");
-
-        LogNpc("[诊断] 行动前");
-        GameRoot.Instance.Flow.RegisterPlayerTouch("diag");
-
-        yield return WaitUntil(delegate { return SceneStitcher.IsActive; }, 15f, "拼接生效");
-        yield return null;
-        LogNpc("[诊断] 拼接中");
-
-        yield return WaitUntil(
-            delegate { return GameRoot.Instance.Session.round == 2 && !SceneStitcher.IsActive; },
-            40f,
-            "本轮结束");
-        yield return null;
-        LogNpc("[诊断] 结算后");
-
-        Assert.Pass();
-    }
-
-    private static void LogNpc(string tag)
-    {
-        ResidentView[] views = Object.FindObjectsOfType<ResidentView>();
-        for (int i = 0; i < views.Length; i++)
-        {
-            ResidentView v = views[i];
-            if (v == null) continue;
-            ResidentData d = v.data;
-            Debug.Log(string.Format(
-                "{0} {1} area={2} worldY={3:0.###} homeY={4:0.###} dataArea={5} dataX={6:0.###} dataGroundY={7:0.###} out={8}",
-                tag, v.id, v.area, v.transform.position.y, v.HomePosition.y,
-                d != null ? d.currentArea.ToString() : "-",
-                d != null ? d.currentX : 0f,
-                d != null ? d.groundY : 0f,
-                d != null ? d.isOut.ToString() : "-"));
-        }
     }
 
     [UnityTest]
@@ -282,6 +237,7 @@ public class SceneSwitchTests
             "玩家输入");
 
         GameRoot.Instance.Flow.RegisterPlayerTouch("rain_stitch_test");
+        GameRoot.Instance.Narration.FinishTouchNarration();
 
         yield return WaitUntil(delegate { return SceneStitcher.IsActive; }, 15f, "拼接生效");
         yield return null;
@@ -330,7 +286,10 @@ public class SceneSwitchTests
             40f,
             "本轮结束");
 
-        Assert.Less(rain.width, 30f, "结算后雨要恢复成单场景大小。");
+        yield return WaitUntil(delegate { return rain == null || rain.width < 30f; }, 3f, "雨恢复成单场景");
+        // 一楼室内本来就没有雨（RainController 在 FirstFloor 会自禁用）；
+        // 这里检查拼接用的那套雨在拆场景前已经恢复成单场景宽度。
+        Assert.IsTrue(rain == null || rain.width < 30f, "结算后雨要恢复成单场景大小。");
     }
 
     private static string Snapshot(GameSession session)

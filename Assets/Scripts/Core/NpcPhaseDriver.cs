@@ -10,6 +10,9 @@ using Object = UnityEngine.Object;
 ///   订阅 NpcActionPhaseEvent → 按顺序执行住户行动，播完后调 GameFlow.NotifyNpcActionDone()。
 ///
 /// 逻辑都在 NpcSystem（纯 C#），这里只负责“什么时候演、隔多久演下一个”。
+///
+/// 谁在用：GameRoot 挂载；它自己订阅 GameFlow 的事件，外部不需要调它。
+/// 唯一"越界"的地方：走位结束后往 ResidentData 写 isOut / currentX（演出需要），改动时留意 NpcSystem 的对应字段。
 /// </summary>
 [DefaultExecutionOrder(-800)]
 public class NpcPhaseDriver : MonoBehaviour
@@ -72,6 +75,9 @@ public class NpcPhaseDriver : MonoBehaviour
             yield break;
         }
 
+        // 玩家触碰后要先看完触碰旁白，再把镜头拉远 / 让住户开始行动。
+        yield return WaitForTouchNarration();
+
         float delay = config != null ? Mathf.Max(0f, config.npcActionStepDelay) : 0f;
         List<ResidentData> actors = npc.GetActors();
 
@@ -122,6 +128,23 @@ public class NpcPhaseDriver : MonoBehaviour
         RestorePatrolsAfterPhase();
         running = null;
         flow.NotifyNpcActionDone();
+    }
+
+    private IEnumerator WaitForTouchNarration()
+    {
+        const float maxWait = 12f;
+        if (!NarrationState.IsTouchNarrationPlaying) yield break;
+
+        float start = Time.unscaledTime;
+        while (NarrationState.IsTouchNarrationPlaying)
+        {
+            if (Time.unscaledTime - start >= maxWait)
+            {
+                Debug.LogWarning("[NPC] 触碰旁白超过 " + maxWait + " 秒还没结束，已强制进入行动阶段。");
+                yield break;
+            }
+            yield return null;
+        }
     }
 
     private IEnumerator WalkHome(List<ResidentData> actors, NpcRoundEndResult roundEnd)

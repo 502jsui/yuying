@@ -58,6 +58,7 @@ public class GameFlowPlayModeTests
         bool accepted = GameRoot.Instance.Flow.RegisterPlayerTouch("test_item");
         Assert.IsTrue(accepted, "第一次触碰应该被接受。");
         Assert.IsFalse(GameRoot.Instance.Flow.RegisterPlayerTouch("test_item"), "同一轮第二次触碰应该被拒绝。");
+        GameRoot.Instance.Narration.FinishTouchNarration();
 
         yield return WaitUntil(
             delegate { return GameRoot.Instance.Flow.Phase == TurnPhase.NpcAction; },
@@ -115,6 +116,7 @@ public class GameFlowPlayModeTests
 
             Assert.AreEqual(round, GameRoot.Instance.Session.round, "应该在第 " + round + " 轮。");
             Assert.IsTrue(GameRoot.Instance.Flow.RegisterPlayerTouch("test_item_" + round), "第 " + round + " 轮触碰应该被接受。");
+            GameRoot.Instance.Narration.FinishTouchNarration();
 
             yield return WaitUntil(
                 delegate { return GameRoot.Instance.Flow.Phase == TurnPhase.NpcAction; },
@@ -154,6 +156,7 @@ public class GameFlowPlayModeTests
 
         // 走完一轮，让进度变成第 2 轮。
         GameRoot.Instance.Flow.RegisterPlayerTouch("a_01");
+        GameRoot.Instance.Narration.FinishTouchNarration();
         yield return WaitUntil(
             delegate { return GameRoot.Instance.Flow.Phase == TurnPhase.NpcAction; },
             3f,
@@ -309,6 +312,7 @@ public class GameFlowPlayModeTests
         EventBus.Subscribe(handler);
 
         GameRoot.Instance.Flow.RegisterPlayerTouch("npc_driver_test");
+        GameRoot.Instance.Narration.FinishTouchNarration();
 
         // 不手动调 NotifyNpcActionDone：必须由 NpcPhaseDriver 自己跑完并推进到第 2 轮。
         yield return WaitUntil(
@@ -375,6 +379,7 @@ public class GameFlowPlayModeTests
         GameRoot.Instance.Config.absentRoundChance = 1f;
 
         GameRoot.Instance.Flow.RegisterPlayerTouch("absent_judge_test");
+        GameRoot.Instance.Narration.FinishTouchNarration();
 
         yield return WaitUntil(
             delegate { return GameRoot.Instance.Session.round == 2; },

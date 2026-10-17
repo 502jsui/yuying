@@ -3,7 +3,8 @@ using UnityEngine;
 
 /// <summary>
 /// 开场序列：6 条醒来独白 → A1 → A2（提示到玩家第一次移动）→ A3（高亮最近的物品）。
-/// 独白 + A1 期间阻断移动，按任意键可跳过；A3 只做高亮，不推镜头（相机是固定取景）。
+/// 独白期间镜头推近主角；独白结束、A1 之前镜头回到单场景取景。
+/// 独白 + A1 期间阻断移动；Space 一句一按，跳过当前句。
 /// </summary>
 [DefaultExecutionOrder(-790)]
 public class IntroNarration : MonoBehaviour
@@ -14,8 +15,25 @@ public class IntroNarration : MonoBehaviour
     [Tooltip("A3 高亮最近物品的时长（秒）。")]
     public float highlightSeconds = 1f;
 
+    [Header("独白推进")]
+    [Tooltip("一句一按：按一下结束当前独白句，进入下一句。")]
+    public KeyCode skipKey = KeyCode.Space;
+
+    [Header("开场镜头")]
+    [Tooltip("先切到的中景尺寸，再慢慢推到特写尺寸。")]
+    public float focusFromSize = 3f;
+    [Tooltip("开场特写的正交尺寸（越小越近）。")]
+    public float focusSize = 2f;
+    [Tooltip("从 focusFromSize 推到 focusSize 的时长。")]
+    public float focusDuration = 2f;
+    [Tooltip("独白结束、回到单场景取景的时长。")]
+    public float returnDuration = 0.8f;
+
     private Coroutine routine;
     private bool skipRequested;
+    private bool advanceRequested;
+    private bool cameraReturned;
+    private SceneCameraFollow2D cameraFraming;
     private GameText text;
     private GameSession session;
 
@@ -29,6 +47,12 @@ public class IntroNarration : MonoBehaviour
     private void OnDisable()
     {
         EventBus.Unsubscribe<GameStateChangedEvent>(OnStateChanged);
+    }
+
+    private void Update()
+    {
+        if (routine == null || IsPaused) return;
+        if (Input.GetKeyDown(skipKey)) RequestAdvance();
     }
 
     private GameText Text
@@ -49,10 +73,16 @@ public class IntroNarration : MonoBehaviour
         }
     }
 
-    /// <summary>跳过开场（测试 / 按键都走这里）。</summary>
+    /// <summary>整段开场直接结束（测试 / 调试用）。</summary>
     public void RequestSkip()
     {
         skipRequested = true;
+    }
+
+    /// <summary>Space 一句一按：结束当前句，进入下一句。</summary>
+    public void RequestAdvance()
+    {
+        advanceRequested = true;
     }
 
     private void OnStateChanged(GameStateChangedEvent evt)
@@ -64,6 +94,8 @@ public class IntroNarration : MonoBehaviour
         if (current == null || current.openingDone) return;
 
         skipRequested = false;
+        advanceRequested = false;
+        cameraReturned = false;
         routine = StartCoroutine(RunIntro());
     }
 
@@ -73,21 +105,33 @@ public class IntroNarration : MonoBehaviour
         NarrationState.SetBlockingInput(true);
 
         GameText source = Text;
+        Transform player = FindPlayer();
+
+        FocusOnPlayer(player);
 
         // 6 条醒来独白
         int count = source != null && source.openingMonologue != null ? source.openingMonologue.Length : 0;
         for (int i = 0; i < count; i++)
         {
             Publish(source.OpeningLine(i), NarrationPriority.Monologue, lineSeconds);
-            yield return WaitOrSkip(lineSeconds);
+            yield return WaitOrAdvance(lineSeconds);
+
             if (skipRequested) break;
+            if (advanceRequested)
+            {
+                advanceRequested = false;
+                ClearLine(NarrationPriority.Monologue);
+            }
         }
+
+        // 独白结束（或整段跳过）：先把镜头拉回单场景，再进 A1。
+        ReturnCameraToScene();
 
         // A1
         if (!skipRequested)
         {
             Publish(source != null ? source.tutorialA1 : null, NarrationPriority.Tutorial, lineSeconds);
-            yield return WaitOrSkip(lineSeconds);
+            yield return WaitSeconds(lineSeconds);
         }
 
         NarrationState.SetBlockingInput(false);
@@ -97,9 +141,11 @@ public class IntroNarration : MonoBehaviour
             // A2：一直显示，直到玩家第一次移动
             Publish(source != null ? source.tutorialA2 : null, NarrationPriority.Tutorial, 0f);
 
-            Transform player = FindPlayer();
             float startX = player != null ? player.position.x : 0f;
-            while (!FirstMoveDetected(player, startX) && !skipRequested) yield return null;
+            while (!FirstMoveDetected(player, startX) && !skipRequested)
+            {
+                yield return null;
+            }
 
             // A3：高亮最近的物品
             Publish(source != null ? source.tutorialA3 : null, NarrationPriority.Tutorial, highlightSeconds + 1f);
@@ -109,12 +155,29 @@ public class IntroNarration : MonoBehaviour
         Finish();
     }
 
-    private IEnumerator WaitOrSkip(float seconds)
+    private IEnumerator WaitOrAdvance(float seconds)
     {
-        float end = Time.unscaledTime + Mathf.Max(0f, seconds);
-        while (Time.unscaledTime < end)
+        float elapsed = 0f;
+        while (elapsed < Mathf.Max(0f, seconds))
         {
-            if (skipRequested || Input.anyKeyDown) { skipRequested = true; yield break; }
+            if (skipRequested) yield break;
+            if (IsPaused) { yield return null; continue; }
+            if (advanceRequested) yield break;
+
+            elapsed += Time.unscaledDeltaTime;
+            yield return null;
+        }
+    }
+
+    private IEnumerator WaitSeconds(float seconds)
+    {
+        float elapsed = 0f;
+        while (elapsed < Mathf.Max(0f, seconds))
+        {
+            if (skipRequested) yield break;
+            if (IsPaused) { yield return null; continue; }
+
+            elapsed += Time.unscaledDeltaTime;
             yield return null;
         }
     }
@@ -138,6 +201,32 @@ public class IntroNarration : MonoBehaviour
         target.transform.localScale = original * 1.15f;
         yield return new WaitForSeconds(highlightSeconds);
         if (target != null) target.transform.localScale = original;
+    }
+
+    private void FocusOnPlayer(Transform player)
+    {
+        if (player == null) return;
+
+        Camera camera = Camera.main;
+        if (camera == null) return;
+
+        cameraFraming = camera.GetComponent<SceneCameraFollow2D>();
+        if (cameraFraming == null) return;
+
+        Vector3 center = player.position + Vector3.up * 1.1f;
+        cameraFraming.FocusOn(center, focusFromSize, focusSize, focusDuration);
+        cameraReturned = false;
+    }
+
+    private void ReturnCameraToScene()
+    {
+        if (cameraReturned) return;
+        cameraReturned = true;
+
+        if (cameraFraming != null)
+        {
+            cameraFraming.AnimateToSceneFraming(returnDuration);
+        }
     }
 
     private Transform FindPlayer()
@@ -186,8 +275,25 @@ public class IntroNarration : MonoBehaviour
         });
     }
 
+    private static void ClearLine(NarrationPriority priority)
+    {
+        EventBus.Publish(new NarrationClearEvent { priority = priority });
+    }
+
+    private static bool IsPaused
+    {
+        get
+        {
+            GameRoot root = GameRoot.Instance;
+            return root != null && root.Flow != null && root.Flow.State == GameState.Paused;
+        }
+    }
+
     private void Finish()
     {
+        ReturnCameraToScene();
+        advanceRequested = false;
+
         GameSession current = Session;
         if (current != null) current.openingDone = true;
 

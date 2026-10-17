@@ -150,16 +150,18 @@ public class SceneStitcher : MonoBehaviour
 
         IsLoadingDuplicate = false;
         SetupStitchedRain();
-        ApplyWideFraming();
+        yield return AnimateWideFraming();
     }
 
     public IEnumerator End()
     {
         if (!IsStitching) yield break;
 
+        // 先在拼接状态里把镜头动画拉回单场景，再拆场景，避免瞬切。
+        yield return AnimateBackToSingleScene();
+
         IsStitching = false;
         IsLoadingDuplicate = false;
-        RestoreFraming();
         TeardownStitchedRain();
 
         if (loaded)
@@ -228,13 +230,21 @@ public class SceneStitcher : MonoBehaviour
         }
     }
 
-    private void ApplyWideFraming()
+    private IEnumerator AnimateWideFraming()
     {
         Camera camera = Camera.main;
-        if (camera == null) return;
+        if (camera == null)
+        {
+            Debug.LogWarning("[SceneStitcher] 拼接时找不到主相机，镜头不拉远。");
+            yield break;
+        }
 
         framing = camera.GetComponent<SceneCameraFollow2D>();
-        if (framing == null) return;
+        if (framing == null)
+        {
+            Debug.LogWarning("[SceneStitcher] 主相机上没有 SceneCameraFollow2D，镜头不拉远。");
+            yield break;
+        }
 
         savedMinX = framing.sceneMinX;
         savedMaxX = framing.sceneMaxX;
@@ -245,19 +255,21 @@ public class SceneStitcher : MonoBehaviour
         WorldBounds(out minX, out maxX);
         framing.sceneMinX = minX;
         framing.sceneMaxX = maxX;
-        framing.ApplyFraming();
+        framing.AnimateToBounds(minX, maxX, framing.sceneMinY, framing.sceneMaxY, framing.npcZoomOutDuration);
+        while (framing != null && framing.IsAnimating) yield return null;
     }
 
-    private void RestoreFraming()
+    private IEnumerator AnimateBackToSingleScene()
     {
-        if (framing == null) return;
+        if (framing == null) yield break;
 
-        // 硬恢复成单场景的一屏范围，避免残留的拉远 / 偏移。
-        framing.sceneMinX = -HalfWidth;
-        framing.sceneMaxX = HalfWidth;
-        framing.sceneMinY = -5.4f;
-        framing.sceneMaxY = 5.4f;
-        framing.ApplyFraming();
+        framing.AnimateToBounds(savedMinX, savedMaxX, savedMinY, savedMaxY, framing.npcZoomBackDuration);
+        while (framing != null && framing.IsAnimating) yield return null;
+
+        framing.sceneMinX = savedMinX;
+        framing.sceneMaxX = savedMaxX;
+        framing.sceneMinY = savedMinY;
+        framing.sceneMaxY = savedMaxY;
         framing = null;
     }
 

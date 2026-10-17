@@ -54,6 +54,7 @@ public class NpcDoorPatrolPlayModeTests
             "玩家输入阶段");
 
         GameRoot.Instance.Flow.RegisterPlayerTouch("door_patrol_test");
+        GameRoot.Instance.Narration.FinishTouchNarration();
 
         yield return WaitUntil(
             delegate { return GameRoot.Instance.Flow.Phase == TurnPhase.NpcAction; },
