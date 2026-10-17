@@ -12,6 +12,10 @@ using UnityEngine;
 ///   - 玩家碰了东西，调用 RegisterPlayerTouch；
 ///   - 物品/数值系统结算完，可以不管（该阶段自动过）；
 ///   - NPC 行为系统演完，调用 NotifyNpcActionDone。
+///
+/// 谁在用：GameRoot 持有并 StartNewGame；GameManager 上报玩家触碰；NpcPhaseDriver 上报行动演完；
+/// PauseDirector 调 Pause / Resume；DebugOverlay 调 ForceAdvancePhase。
+/// `Phase` 属性是外部查询阶段的唯一入口（不再广播阶段事件）。
 /// </summary>
 [DefaultExecutionOrder(-900)]
 public class GameFlow : MonoBehaviour
@@ -114,25 +118,11 @@ public class GameFlow : MonoBehaviour
         session.isRunning = true;
         session.isGameOver = false;
         Time.timeScale = 1f;
+        NarrationState.Reset();
 
         SetState(GameState.Playing);
         if (loop != null) StopCoroutine(loop);
         loop = StartCoroutine(RunGame());
-    }
-
-    public void AbortGame()
-    {
-        if (loop != null)
-        {
-            StopCoroutine(loop);
-            loop = null;
-        }
-        if (session != null)
-        {
-            session.isRunning = false;
-        }
-        Time.timeScale = 1f;
-        SetPhase(TurnPhase.None);
     }
 
     private IEnumerator RunGame()
@@ -165,28 +155,19 @@ public class GameFlow : MonoBehaviour
 
         // ② 场景状态：场上随机摆几件物品，保证玩家有东西可碰。
         SetPhase(TurnPhase.SceneState);
-        int placedItems = 0;
         if (Items != null && config != null)
         {
-            placedItems = Items.EnsureSceneItems(session.playerArea, config.sceneItemCount);
+            Items.EnsureSceneItems(session.playerArea, config.sceneItemCount);
         }
-        EventBus.Publish(new SceneStatePhaseEvent
-        {
-            round = session.round,
-            area = session.playerArea,
-            placedItems = placedItems
-        });
         yield return PhaseBeat();
 
         // ② 玩家输入：只允许碰一次，等玩家碰完。
         SetPhase(TurnPhase.PlayerInput);
         playerInputDone = false;
-        EventBus.Publish(new PlayerInputPhaseEvent { round = session.round });
         yield return WaitForFlag(delegate { return playerInputDone; }, 0f, "PlayerInput");
 
-        // ③ 物品结算：物品/数值系统在这一步处理温度与状态。
+        // ③ 物品结算：温度在②触摸时就标好了，这一步只是节奏点。
         SetPhase(TurnPhase.ItemSettle);
-        EventBus.Publish(new ItemSettlePhaseEvent { round = session.round });
         yield return PhaseBeat();
 
         // ④ 住户行为：玩家锁移动，相机拉远，等 NPC 系统演完。
@@ -327,11 +308,6 @@ public class GameFlow : MonoBehaviour
     public void SetPhase(TurnPhase next)
     {
         if (Phase == next) return;
-        TurnPhase previous = Phase;
         Phase = next;
-        EventBus.Publish(new TurnPhaseChangedEvent { round = session != null ? session.round : 0, previous = previous, current = next });
-
-        bool locked = next == TurnPhase.NpcAction || next == TurnPhase.RoundEnd || next == TurnPhase.GameOver;
-        EventBus.Publish(new PlayerMoveLockEvent { locked = locked });
     }
 }

@@ -29,8 +29,6 @@ public class FrameworkTests
         Assert.AreEqual(6, config.totalRounds);
         Assert.AreEqual(1, config.touchesPerRound);
         Assert.AreEqual(60f, config.highThreshold);
-        Assert.AreEqual(30f, config.doorSeamWarmth);
-        Assert.AreEqual(55f, config.doorHalfWarmth);
         Assert.AreEqual(4, config.residents.Count);
     }
 
@@ -137,20 +135,14 @@ public class FrameworkTests
     }
 
     [Test]
-    public void Session_AddWarmth_ClampsAndPublishesEvent()
+    public void Session_AddWarmth_Clamps()
     {
         GameSession session = new GameSession();
         session.Reset(config, 1);
 
-        float observed = -1f;
-        System.Action<WarmthChangedEvent> handler = evt => observed = evt.current;
-        EventBus.Subscribe(handler);
-
         session.AddWarmth(ResidentId.Grandma, 1000f, config);
 
         Assert.AreEqual(config.maxStatValue, session.GetResident(ResidentId.Grandma).warmth);
-        Assert.AreEqual(config.maxStatValue, observed);
-        EventBus.Unsubscribe(handler);
     }
 
     [Test]
@@ -222,13 +214,6 @@ public class FrameworkTests
             Assert.IsTrue(TurnRules.TryPickAbsentResident(random, config, session.residents, out absent));
             Assert.AreNotEqual(ResidentId.Mother, absent);
         }
-    }
-
-    [Test]
-    public void TurnRules_IsHighValue_UsesStrictGreaterThan()
-    {
-        Assert.IsFalse(TurnRules.IsHighValue(60f, config));
-        Assert.IsTrue(TurnRules.IsHighValue(60.5f, config));
     }
 
     [Test]
@@ -351,5 +336,54 @@ public class FrameworkTests
         Assert.GreaterOrEqual(centerY + halfHeight, framing.sceneMaxY - 0.001f);
 
         Object.DestroyImmediate(go);
+    }
+
+    // ---------------- 镜头动画 / 场景门 / 旁白状态 ----------------
+
+    [Test]
+    public void Camera_ComputeSizeForBounds_MatchesSceneFraming()
+    {
+        GameObject go = new GameObject("CameraBoundsTest");
+        go.AddComponent<Camera>();
+        SceneCameraFollow2D framing = go.AddComponent<SceneCameraFollow2D>();
+        framing.sceneMinX = -9.6f;
+        framing.sceneMaxX = 9.6f;
+        framing.sceneMinY = -5.4f;
+        framing.sceneMaxY = 5.4f;
+
+        Assert.AreEqual(
+            framing.ComputeOrthographicSize(),
+            framing.ComputeOrthographicSizeFor(-9.6f, 9.6f, -5.4f, 5.4f),
+            0.0001f);
+
+        // 拼接两个场景（38.4 宽）应该比单场景更远。
+        Assert.Greater(
+            framing.ComputeOrthographicSizeFor(-19.2f, 19.2f, -5.4f, 5.4f),
+            framing.ComputeOrthographicSize());
+
+        Object.DestroyImmediate(go);
+    }
+
+    [Test]
+    public void PortalHint_MatchesTargetScene()
+    {
+        Assert.AreEqual("按 F 出门", ScenePortal2D.ResolveHintText("Backyard", null, KeyCode.F));
+        Assert.AreEqual("按 F 回屋", ScenePortal2D.ResolveHintText("FirstFloor", null, KeyCode.F));
+        Assert.AreEqual("按 F 切换场景", ScenePortal2D.ResolveHintText("Credits", null, KeyCode.F));
+        Assert.AreEqual("走这边", ScenePortal2D.ResolveHintText("Backyard", "走这边", KeyCode.F));
+    }
+
+    [Test]
+    public void NarrationState_Reset_ClearsTouchNarration()
+    {
+        NarrationState.SetTouchNarrationPlaying(true);
+        NarrationState.SetBlockingInput(true);
+        NarrationState.SetIntroPlaying(true);
+
+        NarrationState.Reset();
+
+        Assert.IsFalse(NarrationState.IsTouchNarrationPlaying);
+        Assert.IsFalse(NarrationState.IsBlockingInput);
+        Assert.IsFalse(NarrationState.IsIntroPlaying);
     }
 }

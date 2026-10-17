@@ -46,7 +46,7 @@ public class DebugOverlay : MonoBehaviour
         GUILayout.Label("状态：" + flow.State + "    阶段：" + flow.Phase, labelStyle);
         GUILayout.Label("轮次：" + session.round + " / " + root.Config.totalRounds + "    种子：" + session.seed, labelStyle);
         GUILayout.Label("本轮触碰：" + session.touchesThisRound + " / " + root.Config.touchesPerRound, labelStyle);
-        GUILayout.Label("强碰警告已用：" + session.forceTouchWarningsUsed + " / " + root.Config.forceTouchWarnCount, labelStyle);
+        GUILayout.Label("本轮强碰警告已用：" + session.forceTouchWarningsUsed + " / " + root.Config.forceTouchWarnCount, labelStyle);
         if (session.hasAbsentResident)
         {
             GUILayout.Label("本轮不回家：" + session.absentResident.ToDisplayName(), labelStyle);

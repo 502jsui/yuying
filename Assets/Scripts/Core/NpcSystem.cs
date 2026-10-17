@@ -28,6 +28,9 @@ public struct NpcRoundEndResult
 ///
 /// 这个类不挂场景，只操作 GameSession / ItemSystem，方便直接写单测。
 /// 演出节奏由 NpcPhaseDriver 负责。
+///
+/// 谁在用：GameRoot 持有；NpcPhaseDriver 逐步调 DecideNextAction / Execute；
+/// GameSimulator 在无画面模拟里走同一套；NpcSystemTests 直接构造。
 /// </summary>
 public class NpcSystem
 {
@@ -35,16 +38,14 @@ public class NpcSystem
     private readonly RandomService random;
     private readonly GameSession session;
     private readonly ItemSystem items;
-    private readonly GameFlow flow;
     private readonly StatSettlement settlement;
 
-    public NpcSystem(GameConfig config, RandomService random, GameSession session, ItemSystem items, GameFlow flow, StatSettlement settlement = null)
+    public NpcSystem(GameConfig config, RandomService random, GameSession session, ItemSystem items, StatSettlement settlement = null)
     {
         this.config = config;
         this.random = random;
         this.session = session;
         this.items = items;
-        this.flow = flow;
         this.settlement = settlement != null ? settlement : new StatSettlement(config, session);
     }
 
@@ -559,12 +560,6 @@ public class NpcSystem
         return true;
     }
 
-    /// <summary>母亲知晓度 &gt; 60 → 暖意跳到 61、知晓度 63（文档七）。</summary>
-    public bool ApplyMotherDoor()
-    {
-        return settlement.ResolveMotherDoorAtEnd();
-    }
-
     private bool ExecuteTakeOut(NpcActionRecord record)
     {
         if (items == null) return false;
@@ -654,14 +649,7 @@ public class NpcSystem
     {
         if (items == null || resident == null) return false;
         if (resident.id == ResidentId.Girl) return false;
-
-        ItemOwner owner = resident.id.ToItemOwner();
-        for (int i = 0; i < session.items.Count; i++)
-        {
-            ItemData item = session.items[i];
-            if (item.owner == owner && item.isInPool && !item.isReturned) return true;
-        }
-        return false;
+        return items.HasItemInPool(resident.id.ToItemOwner());
     }
 
     /// <summary>

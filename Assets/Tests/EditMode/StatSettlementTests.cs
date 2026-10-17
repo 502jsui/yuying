@@ -165,38 +165,29 @@ public class StatSettlementTests
         Assert.AreEqual(30f, session.GetResident(ResidentId.Mother).warmth, 0.001f);
     }
 
-    // ---------------- 阈值 ----------------
+    // ---------------- 母亲开门 ----------------
 
     [Test]
-    public void HighThreshold_IsStrictlyGreaterThan60()
+    public void MotherDoor_AtEnd_RaisesWarmthAndAwarenessToDocumentedValues()
     {
-        Assert.IsFalse(settlement.IsHigh(60f));
-        Assert.IsTrue(settlement.IsHigh(60.5f));
+        ResidentData mother = session.GetResident(ResidentId.Mother);
+        mother.awareness = 60.5f;
+        mother.warmth = 30f;
+
+        Assert.IsTrue(settlement.ResolveMotherDoorAtEnd());
+        Assert.AreEqual(61f, mother.warmth, 0.001f);
+        Assert.AreEqual(63f, mother.awareness, 0.001f);
     }
 
     [Test]
-    public void DoorSeam_Uses30And55()
+    public void MotherDoor_DoesNotLowerAlreadyHigherAwareness()
     {
-        Assert.AreEqual(StatSettlement.DoorSeamState.Closed, settlement.ResolveDoorSeam(29.9f));
-        Assert.AreEqual(StatSettlement.DoorSeamState.Seam, settlement.ResolveDoorSeam(30f));
-        Assert.AreEqual(StatSettlement.DoorSeamState.Seam, settlement.ResolveDoorSeam(54.9f));
-        Assert.AreEqual(StatSettlement.DoorSeamState.HalfOpen, settlement.ResolveDoorSeam(55f));
-    }
+        ResidentData mother = session.GetResident(ResidentId.Mother);
+        mother.awareness = 80f;
+        mother.warmth = 30f;
 
-    [Test]
-    public void DoorLight_Uses30And54()
-    {
-        Assert.AreEqual(StatSettlement.DoorLightTint.White, settlement.ResolveLightTint(29f, true));
-        Assert.AreEqual(StatSettlement.DoorLightTint.PaleYellow, settlement.ResolveLightTint(30f, true));
-        Assert.AreEqual(StatSettlement.DoorLightTint.PaleYellow, settlement.ResolveLightTint(54f, true));
-        Assert.AreEqual(StatSettlement.DoorLightTint.Orange, settlement.ResolveLightTint(55f, true));
-        Assert.AreEqual(StatSettlement.DoorLightTint.White, settlement.ResolveLightTint(90f, false));
-    }
-
-    [Test]
-    public void MotherOpen_Uses60()
-    {
-        Assert.IsFalse(settlement.IsMotherOpen(60f));
-        Assert.IsTrue(settlement.IsMotherOpen(60.1f));
+        Assert.IsTrue(settlement.ResolveMotherDoorAtEnd());
+        Assert.AreEqual(61f, mother.warmth, 0.001f);
+        Assert.AreEqual(80f, mother.awareness, 0.001f);
     }
 }

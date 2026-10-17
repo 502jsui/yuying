@@ -23,6 +23,7 @@ public class PausePlayModeTests
         yield return EnsureGameRoot();
         yield return LoadScene("FirstFloor");
         yield return WaitUntil(delegate { return GameRoot.Instance.Flow.Phase == TurnPhase.PlayerInput; }, 10f);
+        yield return SkipIntro();
 
         int round = GameRoot.Instance.Session.round;
         PlayerController player = Object.FindObjectOfType<PlayerController>();
@@ -73,6 +74,7 @@ public class PausePlayModeTests
         yield return EnsureGameRoot();
         yield return LoadScene("FirstFloor");
         yield return WaitUntil(delegate { return GameRoot.Instance.Flow.Phase == TurnPhase.PlayerInput; }, 10f);
+        yield return SkipIntro();
 
         PauseDirector director = PauseDirector.Instance;
         Assert.IsNotNull(director);
@@ -80,6 +82,7 @@ public class PausePlayModeTests
         // 玩家输入阶段碰一下，流程会进入 NPC 行动阶段（此时不该允许暂停，避免演出被打断）。
         ItemView item = Object.FindObjectOfType<ItemView>();
         if (item != null) GameRoot.Instance.Flow.RegisterPlayerTouch(item.itemId);
+        if (GameRoot.Instance.Narration != null) GameRoot.Instance.Narration.FinishTouchNarration();
 
         yield return WaitUntil(delegate { return GameRoot.Instance.Flow.Phase == TurnPhase.NpcAction; }, 10f);
         Assert.IsFalse(director.CanPause, "NPC 行动阶段不开放暂停");
@@ -118,6 +121,33 @@ public class PausePlayModeTests
         Assert.GreaterOrEqual(height, viewHeight - 0.01f, "背景要盖满屏幕高度");
     }
 
+    [UnityTest]
+    public IEnumerator CanPause_IsFalseWhileSceneIsLoading()
+    {
+        yield return null;
+        yield return EnsureGameRoot();
+        yield return LoadScene("FirstFloor");
+        yield return WaitUntil(delegate { return GameRoot.Instance.Flow.Phase == TurnPhase.PlayerInput; }, 10f);
+        yield return SkipIntro();
+
+        PauseDirector director = PauseDirector.Instance;
+        Assert.IsNotNull(director);
+        Assert.IsTrue(director.CanPause, "正常情况下玩家输入阶段应该允许暂停");
+
+        // 传送淡出 / 异步加载期间：不许暂停，免得把传送打断。
+        SceneTransitionState.BeginLoad();
+        try
+        {
+            Assert.IsFalse(director.CanPause, "切场景期间不许暂停");
+        }
+        finally
+        {
+            SceneTransitionState.EndLoad();
+        }
+
+        Assert.IsTrue(director.CanPause, "传送结束后又能暂停");
+    }
+
     private static IEnumerator EnsureGameRoot()
     {
         if (GameRoot.Instance != null) yield break;
@@ -125,6 +155,14 @@ public class PausePlayModeTests
         GameObject rootObject = new GameObject("[GameRoot-Test]");
         rootObject.AddComponent<GameRoot>();
         yield return null;
+    }
+
+    private static IEnumerator SkipIntro()
+    {
+        IntroNarration intro = Object.FindObjectOfType<IntroNarration>();
+        if (intro != null) intro.RequestSkip();
+        yield return WaitUntil(delegate { return !NarrationState.IsBlockingInput; }, 5f);
+        Assert.IsFalse(NarrationState.IsBlockingInput, "开场独白没能跳过。");
     }
 
     private static IEnumerator LoadScene(string sceneName)

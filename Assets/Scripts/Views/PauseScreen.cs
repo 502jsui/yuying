@@ -62,7 +62,10 @@ public class PauseScreen : MonoBehaviour
 
     public void OnSettingsClicked()
     {
-        if (PauseDirector.Instance != null) PauseDirector.Instance.OpenSettings();
+        // 暂停里的「设置」是暂停场景内的面板：不切场景，免得把暂停状态（timeScale=0 + Paused）带丢。
+        PauseMenuUI menu = FindObjectOfType<PauseMenuUI>();
+        if (menu != null) menu.OpenSettingsPanel();
+        else Debug.LogWarning("[暂停] 场景里没有 PauseMenuUI，设置面板打不开。");
     }
 
     public void OnQuitClicked()

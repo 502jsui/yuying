@@ -147,20 +147,22 @@ public class ItemSystemTests
     // ---------------- 物品池流转 ----------------
 
     [Test]
-    public void TakeOutNext_PopsInOrder_AndStopsWhenEmpty()
+    public void FindNextPoolItem_ReturnsSuccessiveItems_UntilPoolEmpty()
     {
-        ItemActionResult first = items.TakeOutNext(ItemOwner.Mother, AreaId.FirstFloor, "r", PlacementSurface.HangingRack);
+        ItemData first = items.FindNextPoolItem(ItemOwner.Mother);
         Assert.AreEqual("mother_01", first.itemId);
+        Assert.IsTrue(items.TakeOut(first.itemId, AreaId.FirstFloor, "r", PlacementSurface.HangingRack).IsSuccess);
 
-        ItemActionResult second = items.TakeOutNext(ItemOwner.Mother, AreaId.FirstFloor, "g", PlacementSurface.Ground);
+        ItemData second = items.FindNextPoolItem(ItemOwner.Mother);
         Assert.AreEqual("mother_02", second.itemId);
+        Assert.IsTrue(items.TakeOut(second.itemId, AreaId.FirstFloor, "g", PlacementSurface.Ground).IsSuccess);
 
-        ItemActionResult third = items.TakeOutNext(ItemOwner.Mother, AreaId.FirstFloor, "o", PlacementSurface.OnItem);
+        ItemData third = items.FindNextPoolItem(ItemOwner.Mother);
         Assert.AreEqual("mother_03", third.itemId);
+        Assert.IsTrue(items.TakeOut(third.itemId, AreaId.FirstFloor, "o", PlacementSurface.OnItem).IsSuccess);
 
         Assert.IsFalse(items.HasItemInPool(ItemOwner.Mother));
-        ItemActionResult empty = items.TakeOutNext(ItemOwner.Mother, AreaId.FirstFloor, "g", PlacementSurface.Ground);
-        Assert.AreEqual(ItemActionStatus.NoItemInPool, empty.status);
+        Assert.IsNull(items.FindNextPoolItem(ItemOwner.Mother));
     }
 
     [Test]
@@ -403,6 +405,34 @@ public class ItemSystemTests
         Assert.AreEqual(NpcState.Startled, aunt.state);
         Assert.IsTrue(aunt.wasForceTouched);
         Assert.AreEqual(warmthBefore - config.forceTouchWarmthPenalty, aunt.warmth, 0.001f);
+    }
+
+    [Test]
+    public void ForceTouch_WarningsResetEachRound()
+    {
+        ResidentData uncle = session.GetResident(ResidentId.Uncle);
+
+        // 第 1 轮：两次警告都用掉
+        uncle.currentArea = AreaId.FirstFloor;
+        session.SetNpcState(ResidentId.Uncle, NpcState.StayOut);
+        items.SetAreaBlocked(AreaId.FirstFloor, ResidentId.Uncle);
+
+        Assert.AreEqual(ItemActionStatus.ForceTouchWarned, items.Touch("grandma_01").status);
+        Assert.AreEqual(ItemActionStatus.ForceTouchWarned, items.Touch("grandma_01").status);
+        Assert.AreEqual(2, session.forceTouchWarningsUsed);
+
+        // 新的一轮开始：警告额度要回到 0，节奏重新从「警告 1」算起
+        session.BeginRound(true, ResidentId.Uncle);
+        Assert.AreEqual(0, session.forceTouchWarningsUsed, "每轮开始都要重置强碰警告次数");
+
+        // BeginRound 会把住户复位，这里按「他还占着一楼」重新摆好
+        uncle.currentArea = AreaId.FirstFloor;
+        session.SetNpcState(ResidentId.Uncle, NpcState.StayOut);
+        items.SetAreaBlocked(AreaId.FirstFloor, ResidentId.Uncle);
+
+        ItemActionResult warning = items.Touch("grandma_01");
+        Assert.AreEqual(ItemActionStatus.ForceTouchWarned, warning.status, "新一轮仍然先给警告，不该直接强碰生效");
+        Assert.AreEqual(1, session.forceTouchWarningsUsed);
     }
 
     // ---------------- 区域占用 ----------------

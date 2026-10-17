@@ -4,6 +4,8 @@ using UnityEngine;
 /// <summary>
 /// 工程唯一的音频出口：任何人要出声都得经过这里，不要各自 AddComponent&lt;AudioSource&gt;()。
 ///
+/// 谁在用：GameRoot 持有；AudioDirector 订阅玩法事件播音效；UI（设置 / 暂停面板）只调音量与静音接口。
+///
 /// 接口分四组：
 ///   1) 音量总线：MasterVolume / MusicVolume / SfxVolume + SetXxxVolume + IsMuted / SetMuted / ToggleMute
 ///      （数值自动存 PlayerPrefs，重启保留；静音只是把三路输出乘 0，滑条数值不动）
@@ -102,6 +104,7 @@ public class AudioManager : MonoBehaviour
     {
         MasterVolume = Mathf.Clamp01(value);
         PlayerPrefs.SetFloat(MasterKey, MasterVolume);
+        PlayerPrefs.Save();
         ApplyVolumes();
     }
 
@@ -109,6 +112,7 @@ public class AudioManager : MonoBehaviour
     {
         MusicVolume = Mathf.Clamp01(value);
         PlayerPrefs.SetFloat(MusicKey, MusicVolume);
+        PlayerPrefs.Save();
         ApplyVolumes();
     }
 
@@ -252,6 +256,7 @@ public class AudioManager : MonoBehaviour
     {
         SfxVolume = Mathf.Clamp01(value);
         PlayerPrefs.SetFloat(SfxKey, SfxVolume);
+        PlayerPrefs.Save();
         ApplyVolumes();
     }
 

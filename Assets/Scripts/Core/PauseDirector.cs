@@ -10,8 +10,8 @@ using UnityEngine.SceneManagement;
 /// 数据都挂在常驻的 GameRoot 上，所以来回跳不会丢进度；玩家站位也会还原。
 ///
 /// 挂在 GameRoot 上（常驻），UI 只要调 <see cref="PauseGame"/> / <see cref="ResumeGame"/> /
-/// <see cref="OpenSettings"/> / <see cref="QuitGame"/> 就行；暂停场景里的
-/// PauseScreen 已经把这三个按钮回调留好了。
+/// <see cref="QuitGame"/> 就行；暂停里的「设置」走暂停场景内的面板（`PauseMenuUI.OpenSettingsPanel`），
+/// 不切场景 —— 否则会把暂停状态（timeScale = 0 + Paused）带丢。
 /// </summary>
 [DefaultExecutionOrder(-700)]
 public class PauseDirector : MonoBehaviour
@@ -41,6 +41,8 @@ public class PauseDirector : MonoBehaviour
             GameRoot root = GameRoot.Instance;
             if (root == null || root.Flow == null || root.Session == null) return false;
             if (!root.Flow.IsRunning || root.Session.isGameOver) return false;
+            if (SceneTransitionState.IsLoading) return false;   // 正在切场景：别把传送打断
+            if (NarrationState.IsBlockingInput) return false;   // 开场独白期间别暂停，镜头状态会错位
             return root.Flow.State == GameState.Playing && root.Flow.CanPlayerMove;
         }
     }
@@ -91,19 +93,6 @@ public class PauseDirector : MonoBehaviour
         // 站位要留到那时候消费；截图由暂停场景卸载时（PauseScreen.OnDestroy）释放。
 
         Debug.Log("[暂停] 继续游戏，回到 " + sceneName);
-    }
-
-    /// <summary>设置界面（UI 同学负责，场景叫 Settings 就跳，没有就先只打日志）。</summary>
-    public void OpenSettings()
-    {
-        const string settingsScene = "Settings";
-        if (Application.CanStreamedLevelBeLoaded(settingsScene))
-        {
-            SceneManager.LoadScene(settingsScene, LoadSceneMode.Single);
-            return;
-        }
-
-        Debug.LogWarning("[暂停] 设置场景还没接（UI 负责）：加载 " + settingsScene + " 失败，先留在暂停界面。");
     }
 
     /// <summary>退出游戏。</summary>

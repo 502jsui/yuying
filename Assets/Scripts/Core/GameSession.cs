@@ -19,7 +19,11 @@ public class GameSession
     public List<ResidentData> residents = new List<ResidentData>();
     public List<ItemData> items = new List<ItemData>();
 
-    /// <summary>本局到目前为止用掉的“强行触碰警告”次数，整局只有 2 次。</summary>
+    /// <summary>
+    /// 本轮用掉的“强行触碰警告”次数。每轮开始时重置，
+    /// 所以「前 2 次只警告、第 3 次起生效」的节奏在每一轮都从头算。
+    /// 额度是 GameConfig.forceTouchWarnCount（默认 2）。
+    /// </summary>
     public int forceTouchWarningsUsed;
 
     /// <summary>本轮玩家已经触碰的物品数。</summary>
@@ -31,15 +35,10 @@ public class GameSession
 
     // ---- 文案 / 教学：整局只触发一次的标记 ----
     public bool openingDone;
-    public bool tutorialFirstMoveDone;
     public bool tutorialFirstTouchDone;
     public bool tutorialFirstOutDone;
     public bool tutorialFirstTakenDone;
     public bool tutorialFirstSettleDone;
-
-    public event Action<ResidentId, float, float> WarmthChanged;
-    public event Action<ResidentId, float, float> AwarenessChanged;
-    public event Action<ResidentId, NpcState, NpcState> NpcStateChanged;
 
     public void Reset(GameConfig config, int sessionSeed)
     {
@@ -54,7 +53,6 @@ public class GameSession
         absentResident = ResidentId.Girl;
         hasAbsentResident = false;
         openingDone = false;
-        tutorialFirstMoveDone = false;
         tutorialFirstTouchDone = false;
         tutorialFirstOutDone = false;
         tutorialFirstTakenDone = false;
@@ -127,16 +125,6 @@ public class GameSession
         return created;
     }
 
-    public List<ItemData> GetItemsOwnedBy(ItemOwner owner)
-    {
-        List<ItemData> result = new List<ItemData>();
-        for (int i = 0; i < items.Count; i++)
-        {
-            if (items[i].owner == owner) result.Add(items[i]);
-        }
-        return result;
-    }
-
     public List<ItemData> GetItemsInArea(AreaId area)
     {
         List<ItemData> result = new List<ItemData>();
@@ -164,14 +152,8 @@ public class GameSession
         ResidentData resident = GetResident(id);
         if (resident == null) return 0f;
 
-        float previous = resident.warmth;
         float max = config != null ? config.maxStatValue : 100f;
         resident.warmth = Mathf.Clamp(resident.warmth + delta, 0f, max);
-        if (!Mathf.Approximately(previous, resident.warmth))
-        {
-            if (WarmthChanged != null) WarmthChanged(id, previous, resident.warmth);
-            EventBus.Publish(new WarmthChangedEvent { id = id, previous = previous, current = resident.warmth });
-        }
         return resident.warmth;
     }
 
@@ -180,14 +162,8 @@ public class GameSession
         ResidentData resident = GetResident(id);
         if (resident == null) return 0f;
 
-        float previous = resident.awareness;
         float max = config != null ? config.maxStatValue : 100f;
         resident.awareness = Mathf.Clamp(resident.awareness + delta, 0f, max);
-        if (!Mathf.Approximately(previous, resident.awareness))
-        {
-            if (AwarenessChanged != null) AwarenessChanged(id, previous, resident.awareness);
-            EventBus.Publish(new AwarenessChangedEvent { id = id, previous = previous, current = resident.awareness });
-        }
         return resident.awareness;
     }
 
@@ -198,14 +174,14 @@ public class GameSession
 
         NpcState previous = resident.state;
         resident.state = state;
-        if (NpcStateChanged != null) NpcStateChanged(id, previous, state);
         EventBus.Publish(new NpcStateChangedEvent { id = id, previous = previous, current = state });
     }
 
-    /// <summary>把每轮的临时字段清掉，并重置“玩家本轮已触碰次数”。</summary>
+    /// <summary>把每轮的临时字段清掉，并重置“玩家本轮已触碰次数 / 本轮强碰警告次数”。</summary>
     public void BeginRound(bool absent, ResidentId absentId)
     {
         touchesThisRound = 0;
+        forceTouchWarningsUsed = 0;
         hasAbsentResident = absent;
         absentResident = absentId;
         for (int i = 0; i < residents.Count; i++)

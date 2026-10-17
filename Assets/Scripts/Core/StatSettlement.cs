@@ -15,26 +15,10 @@ using UnityEngine;
 ///   · 强碰传染         → 交流对象暖意 −5
 ///   · 母亲开门         → 知晓 > 60 时暖意跳到 61、知晓 63
 ///
-/// 阈值：门缝 30 / 半开 55、高 60、母亲开门 60 / 61。
+/// 阈值：高 / 低档位 60、母亲开门 60 / 61。
 /// </summary>
 public class StatSettlement
 {
-    /// <summary>门缝开合程度：对应文档「暖意 30 / 55」。</summary>
-    public enum DoorSeamState
-    {
-        Closed,
-        Seam,
-        HalfOpen
-    }
-
-    /// <summary>门缝光颜色：对应文档「知晓 30 / 54」。</summary>
-    public enum DoorLightTint
-    {
-        White,
-        PaleYellow,
-        Orange
-    }
-
     private readonly GameConfig config;
     private readonly GameSession session;
 
@@ -120,8 +104,8 @@ public class StatSettlement
     // ------------------------------------------------------------------
 
     /// <summary>
-    /// **第 6 轮结束后**才判定母亲开门：知晓 &gt; 60 → 暖意跳到 61（只变这一次）。
-    /// 返回这次有没有开门。
+    /// **第 6 轮结束后**才判定母亲开门：知晓 &gt; 60 → 暖意至少 61、知晓至少 63。
+    /// 已经更高的值不往下压。返回这次有没有开门。
     /// </summary>
     public bool ResolveMotherDoorAtEnd()
     {
@@ -135,40 +119,11 @@ public class StatSettlement
         {
             AddWarmth(ResidentId.Mother, config.motherOpenWarmth - mother.warmth);
         }
+        if (mother.awareness < config.motherOpenAwarenessValue)
+        {
+            AddAwareness(ResidentId.Mother, config.motherOpenAwarenessValue - mother.awareness);
+        }
         return true;
-    }
-
-    // ------------------------------------------------------------------
-    // 阈值查询（30 / 55 / 60 / 61）
-    // ------------------------------------------------------------------
-
-    /// <summary>高 / 低档位：> 60 算高。</summary>
-    public bool IsHigh(float value)
-    {
-        return value > config.highThreshold;
-    }
-
-    /// <summary>母亲是否已经开门（知晓 &gt; 60）。</summary>
-    public bool IsMotherOpen(float awareness)
-    {
-        return awareness > config.motherOpenAwareness;
-    }
-
-    /// <summary>暖意 → 门缝开合：&lt;30 全关 / 30~55 开一条缝 / ≥55 半开。</summary>
-    public DoorSeamState ResolveDoorSeam(float warmth)
-    {
-        if (warmth < config.doorSeamWarmth) return DoorSeamState.Closed;
-        if (warmth < config.doorHalfWarmth) return DoorSeamState.Seam;
-        return DoorSeamState.HalfOpen;
-    }
-
-    /// <summary>知晓度 → 门缝光：&lt;30 白光 / 30~54 浅黄 / &gt;54 黄橙。</summary>
-    public DoorLightTint ResolveLightTint(float awareness, bool hasAwareness)
-    {
-        if (!hasAwareness) return DoorLightTint.White;
-        if (awareness < config.lightWhiteAwareness) return DoorLightTint.White;
-        if (awareness <= config.lightYellowAwareness) return DoorLightTint.PaleYellow;
-        return DoorLightTint.Orange;
     }
 
     // ------------------------------------------------------------------

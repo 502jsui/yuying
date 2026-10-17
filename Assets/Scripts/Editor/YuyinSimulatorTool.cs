@@ -32,6 +32,7 @@ using UnityEngine;
 ///             -simWarmTake -simAwareTake -simAwareTakeCold
 ///             -simWarmTalk -simAwareTalk -simAwareTalkMother -simGirlWarm
 ///             -simInitAwareness -simInitAwarenessMother（初始知晓度）
+///             -simTouches（每轮玩家能碰几次）
 /// </summary>
 public static class YuyinSimulatorTool
 {
@@ -259,6 +260,7 @@ public static class YuyinSimulatorTool
         tuning.girlMoveWarmth = GetFloatOrNull(args, "-simGirlWarm", tuning.girlMoveWarmth);
         tuning.initialAwareness = GetFloatOrNull(args, "-simInitAwareness", tuning.initialAwareness);
         tuning.motherInitialAwareness = GetFloatOrNull(args, "-simInitAwarenessMother", tuning.motherInitialAwareness);
+        tuning.touchesPerRound = GetIntOrNull(args, "-simTouches", tuning.touchesPerRound);
     }
 
     private static float? GetFloatOrNull(Dictionary<string, string> args, string key, float? fallback)
@@ -266,6 +268,15 @@ public static class YuyinSimulatorTool
         string value;
         float parsed;
         if (args.TryGetValue(key, out value) && float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out parsed))
+            return parsed;
+        return fallback;
+    }
+
+    private static int? GetIntOrNull(Dictionary<string, string> args, string key, int? fallback)
+    {
+        string value;
+        int parsed;
+        if (args.TryGetValue(key, out value) && int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out parsed))
             return parsed;
         return fallback;
     }
