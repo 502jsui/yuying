@@ -37,7 +37,7 @@ public class SceneCameraFollow2D : MonoBehaviour
 
     private Camera cameraComponent;
     private float lastAspect;
-    private Coroutine animation;
+    private Coroutine animationRoutine;
     private bool animating;
 
     /// <summary>镜头是否正在做动画（SceneStitcher 用它等拉远 / 拉回结束）。</summary>
@@ -152,7 +152,7 @@ public class SceneCameraFollow2D : MonoBehaviour
             return;
         }
 
-        animation = StartCoroutine(AnimateRoutine(targetPosition, targetSize, duration));
+        animationRoutine = StartCoroutine(AnimateRoutine(targetPosition, targetSize, duration));
     }
 
     /// <summary>把镜头动画到一组世界边界的完整取景。</summary>
@@ -192,10 +192,10 @@ public class SceneCameraFollow2D : MonoBehaviour
 
     public void CancelAnimation()
     {
-        if (animation != null)
+        if (animationRoutine != null)
         {
-            StopCoroutine(animation);
-            animation = null;
+            StopCoroutine(animationRoutine);
+            animationRoutine = null;
         }
         animating = false;
     }
@@ -222,7 +222,7 @@ public class SceneCameraFollow2D : MonoBehaviour
         cameraComponent.orthographicSize = targetSize;
         lastAspect = cameraComponent.aspect;
         animating = false;
-        animation = null;
+        animationRoutine = null;
     }
 
 }
