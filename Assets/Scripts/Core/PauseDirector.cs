@@ -95,6 +95,28 @@ public class PauseDirector : MonoBehaviour
         Debug.Log("[暂停] 继续游戏，回到 " + sceneName);
     }
 
+    /// <summary>放弃当前这一局，回主菜单。会恢复 timeScale、重置流程状态、清掉暂停现场。</summary>
+    public void ReturnToMainMenu()
+    {
+        GameRoot root = GameRoot.Instance;
+        if (root == null) return;
+
+        if (root.Flow != null)
+        {
+            root.Flow.Resume();
+            root.Flow.SetState(GameState.MainMenu);
+        }
+
+        if (root.Session != null)
+        {
+            root.Session.isRunning = false;
+            root.Session.isGameOver = false;
+        }
+
+        PauseSnapshot.Clear();
+        SceneManager.LoadScene("MainMenu", LoadSceneMode.Single);
+    }
+
     /// <summary>退出游戏。</summary>
     public void QuitGame()
     {
