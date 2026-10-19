@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;  
 
 /// <summary>
 /// 暂停界面及设置项的转发
@@ -22,6 +23,33 @@ public class PauseMenuUI : MonoBehaviour
     [Header("场景亮度遮罩")]
     public Image brightnessOverlay;
 
+    [Header("重新开始")]
+    [Tooltip("重开一局时加载的起始场景，必须在 Build Settings 里")]
+    public string restartSceneName = "FirstFloor";
+
+
+    /// <summary>
+    /// 暂停时「重新开始」按钮的回调：放弃当前进度，从头开一局。
+    /// StartNewGame() 会重置 session / 道具 / 随机种子 / timeScale / 回合循环；
+    /// 但它不重载场景，所以这里再 LoadScene 一次，把场景里的物件和站位也刷新。
+    /// </summary>
+    public void OnRestartClicked()
+    {
+        GameRoot root = GameRoot.Instance;
+        if (root == null) return;
+
+        // ① 先离开"暂停"状态（Resume 只在 Paused 时生效，会把 timeScale 恢复成 1）
+        if (root.Flow != null) root.Flow.Resume();
+
+        // ② 清掉暂停现场（截图 / 待恢复的站位），避免带脏数据
+        PauseSnapshot.Clear();
+
+        // ③ 重置这一局（session / 道具 / 随机种子 / 计时 / 回合循环）
+        root.StartNewGame();
+
+        // ④ 重新加载起始场景，让场景里的物件和站位也回到初始状态
+        SceneManager.LoadScene(restartSceneName, LoadSceneMode.Single);
+    }
     private AudioManager Audio
     {
         get { return GameRoot.Instance != null ? GameRoot.Instance.Audio : null; }
@@ -40,7 +68,10 @@ public class PauseMenuUI : MonoBehaviour
     }
 
     // ---- 面板开关 ----
-
+    public void OnReturnToMainMenuClicked()
+    {
+        if (PauseDirector.Instance != null) PauseDirector.Instance.ReturnToMainMenu();
+    }
     public void OpenSettingsPanel()
     {
         if (settingsPanel == null)
