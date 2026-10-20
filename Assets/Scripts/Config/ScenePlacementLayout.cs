@@ -36,10 +36,10 @@ public static class ScenePlacementLayout
         new ScenePlacementSpec("second_ground", AreaId.SecondFloor, PlacementSurface.Ground, -2f, -3.27f),
         new ScenePlacementSpec("second_on_item", AreaId.SecondFloor, PlacementSurface.OnItem, 3.91f, -3.39f),
 
-        new ScenePlacementSpec("backyard_rack_a", AreaId.Backyard, PlacementSurface.HangingRack, -4f, -0.7f),
-        new ScenePlacementSpec("backyard_rack_b", AreaId.Backyard, PlacementSurface.HangingRack, 4f, -0.7f),
+        new ScenePlacementSpec("backyard_rack_a", AreaId.Backyard, PlacementSurface.HangingRack, -1.86f, -1.26f),
+        new ScenePlacementSpec("backyard_rack_b", AreaId.Backyard, PlacementSurface.HangingRack, 4f, -1.44f),
         new ScenePlacementSpec("backyard_ground_a", AreaId.Backyard, PlacementSurface.Ground, -2f, -2.9f),
-        new ScenePlacementSpec("backyard_on_item", AreaId.Backyard, PlacementSurface.OnItem, 2.5f, -1.3f)
+        new ScenePlacementSpec("backyard_on_item", AreaId.Backyard, PlacementSurface.OnItem, -5.97f, -3.56f)
     };
 
     public static int Count
