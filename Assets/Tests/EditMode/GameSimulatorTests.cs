@@ -51,10 +51,35 @@ public class GameSimulatorTests
     }
 
     [Test]
+    public void Simulator_DefaultPolicy_IsFullGame()
+    {
+        Assert.AreEqual(SimPlayerPolicy.FullGameAndInsist, new SimulationOptions().policy);
+    }
+
+    [Test]
+    public void Simulator_UsesCanonicalPlacementLayout()
+    {
+        GameSimulator.InstallCanonicalPlacements();
+
+        List<PlacementOption> actual = PlacementRegistry.GetAll();
+        Assert.AreEqual(ScenePlacementLayout.Count, actual.Count);
+
+        for (int i = 0; i < ScenePlacementLayout.Count; i++)
+        {
+            ScenePlacementSpec expected = ScenePlacementLayout.Get(i);
+            PlacementOption option;
+            Assert.IsTrue(PlacementRegistry.TryGet(expected.id, out option), "模拟器缺少放置点 " + expected.id);
+            Assert.AreEqual(expected.area, option.area);
+            Assert.AreEqual(expected.surface, option.surface);
+        }
+    }
+
+    [Test]
     public void Simulator_ReportCountsAreConsistent()
     {
         SimulationReport report = GameSimulator.Run(config, new SimulationOptions { runs = 120 });
 
+        Assert.AreEqual(3, GameSimulator.AllEndings.Length);
         Assert.AreEqual(120, report.games.Count);
         Assert.AreEqual(120, report.runs);
         Assert.AreEqual(GameSimulator.AllEndings.Length, report.endingCounts.Length);
@@ -80,6 +105,10 @@ public class GameSimulatorTests
         Assert.AreEqual(maxCount, report.endingCounts[(int)report.maxEnding]);
         Assert.AreEqual(maxCount, Mathf.RoundToInt(report.maxShare * report.games.Count));
         Assert.GreaterOrEqual(report.maxShare, report.minShare);
+        Assert.AreEqual(
+            report.endingCounts[(int)EndingId.RainInTheCorridor],
+            report.buildingUnawareCandidates,
+            "BE 诊断计数必须和最终结局计数一致");
     }
 
     [Test]
@@ -102,7 +131,8 @@ public class GameSimulatorTests
             SimPlayerPolicy.StayAndWait,
             SimPlayerPolicy.StayAndInsist,
             SimPlayerPolicy.RoamAndWait,
-            SimPlayerPolicy.RoamAndInsist
+            SimPlayerPolicy.RoamAndInsist,
+            SimPlayerPolicy.FullGameAndInsist
         };
 
         for (int i = 0; i < policies.Length; i++)
@@ -115,6 +145,30 @@ public class GameSimulatorTests
             });
             Assert.AreEqual(20, report.games.Count, policies[i] + " 没跑完");
         }
+    }
+
+    [Test]
+    public void Simulator_FullGamePolicy_CoversSecondFloorMotherItemsAndConfusion()
+    {
+        SimulationReport report = GameSimulator.Run(config, new SimulationOptions
+        {
+            runs = 20,
+            seedBase = 4321,
+            policy = SimPlayerPolicy.FullGameAndInsist
+        });
+
+        int motherTouches = 0;
+        int confusions = 0;
+        for (int i = 0; i < report.games.Count; i++)
+        {
+            motherTouches += report.games[i].motherItemTouches;
+            confusions += report.games[i].confusions;
+        }
+
+        Assert.Greater(motherTouches, 0, "完整局策略应上二楼并触碰母亲物品");
+        Assert.Greater(confusions, 0, "触碰母亲物品后应触发疑惑");
+        Assert.Greater(report.averageMotherItemTouches, 0f);
+        Assert.Greater(report.averageConfusions, 0f);
     }
 
     [Test]
@@ -145,7 +199,7 @@ public class GameSimulatorTests
 
         List<string> lines = report.AcceptanceLines(acceptance);
         Assert.IsNotEmpty(lines);
-        StringAssert.Contains("不通过", lines[0], "只跑 1 局不可能出现 8 个结局，应该判失败");
+        StringAssert.Contains("不通过", lines[0], "只跑 1 局不可能出现 3 个结局，应该判失败");
     }
 
     [Test]
@@ -159,9 +213,7 @@ public class GameSimulatorTests
 
         Assert.IsFalse(report.motherEnabled);
         Assert.AreEqual(0f, report.motherDoorShare, 0.0001f, "母亲不参与时她不该开门");
-        Assert.AreEqual(0, report.endingCounts[(int)EndingId.Farewell]);
-        Assert.AreEqual(0, report.endingCounts[(int)EndingId.MutualConcealment]);
-        Assert.AreEqual(0, report.endingCounts[(int)EndingId.OnlyMotherKnows]);
+        Assert.AreEqual(0, report.endingCounts[(int)EndingId.BeforeSnowStops]);
 
         for (int i = 0; i < report.games.Count; i++)
         {

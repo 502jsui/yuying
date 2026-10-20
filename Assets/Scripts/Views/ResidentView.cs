@@ -16,6 +16,25 @@ public class ResidentView : MonoBehaviour
     public DoorLightView doorLight;
     public SpriteRenderer doorLightRenderer;
 
+    [Header("坐姿")]
+    [Tooltip("老婆婆缝衣 / 大叔雕刻的坐姿立绘。留空时保持站立外观。")]
+    public Sprite sittingSprite;
+    public float sittingHeight = 1.8f;
+    public float sittingFootOffsetY = -0.9f;
+    public int sittingSortingOrder = 5;
+
+    [Header("走路立绘")]
+    public Sprite walkingSprite;
+    public float walkingHeight = 2.3f;
+    public float walkingFootOffsetY = -1.15f;
+    public int walkingSortingOrder = 5;
+
+    [Header("交流立绘")]
+    public Sprite talkingSprite;
+    public float talkingHeight = 2.3f;
+    public float talkingFootOffsetY = -1.15f;
+    public int talkingSortingOrder = 5;
+
     [Header("颜色配置")]
     public Color warmthLow = new Color(0.6f, 0.6f, 0.7f);
     public Color warmthHigh = new Color(1f, 0.85f, 0.5f);
@@ -28,6 +47,13 @@ public class ResidentView : MonoBehaviour
     private Vector3 homePosition;
     private Collider2D[] colliders;
     private bool subscribed;
+    private Sprite standingSprite;
+    private Vector3 standingLocalScale;
+    private Vector3 standingLocalPosition;
+    private Color standingColor;
+    private int standingSortingOrder;
+    private bool poseCached;
+    private bool customPoseActive;
 
     /// <summary>这个场景里他「家门口」的位置（每轮回家 / 待在门里的落点）。</summary>
     public Vector3 HomePosition { get { return homePosition; } }
@@ -56,6 +82,8 @@ public class ResidentView : MonoBehaviour
         // 用显式地面高度，而不是场景里的 Y（实例位置可能是 0，导致人浮在半空）。
         homePosition = new Vector3(transform.position.x, groundY, transform.position.z);
         transform.position = homePosition;
+        LoadPoseArtFromConfig();
+        CacheStandingPose();
     }
 
     private void OnEnable()
@@ -74,6 +102,7 @@ public class ResidentView : MonoBehaviour
         if (subscribed) return;
         EventBus.Subscribe<NpcStateChangedEvent>(OnNpcStateChanged);
         EventBus.Subscribe<NpcMovedEvent>(OnNpcMoved);
+        EventBus.Subscribe<NpcPoseChangedEvent>(OnNpcPoseChanged);
         subscribed = true;
     }
 
@@ -82,6 +111,7 @@ public class ResidentView : MonoBehaviour
         if (!subscribed) return;
         EventBus.Unsubscribe<NpcStateChangedEvent>(OnNpcStateChanged);
         EventBus.Unsubscribe<NpcMovedEvent>(OnNpcMoved);
+        EventBus.Unsubscribe<NpcPoseChangedEvent>(OnNpcPoseChanged);
         subscribed = false;
     }
 
@@ -91,6 +121,11 @@ public class ResidentView : MonoBehaviour
     }
 
     private void OnNpcMoved(NpcMovedEvent evt)
+    {
+        if (evt.id == id) RefreshVisual();
+    }
+
+    private void OnNpcPoseChanged(NpcPoseChangedEvent evt)
     {
         if (evt.id == id) RefreshVisual();
     }
@@ -112,13 +147,17 @@ public class ResidentView : MonoBehaviour
         Vector3 position = transform.position;
         // currentX 是「本区域内的局部 X」，换世界坐标要加上拼接偏移。
         position.x = SceneStitcher.WorldX(area, data.currentX);
-        position.y = homePosition.y;
+        position.y = homePosition.y + SceneStitcher.OffsetYFor(area);
         transform.position = position;
     }
 
     public void RefreshVisual()
     {
         if (data == null) return;
+
+        bool sit = data.state == NpcState.Sitting && !data.isOut && sittingSprite != null;
+        bool customPose = ApplyBodyPose(sit, data.visualPose);
+        if (bodyRenderer) bodyRenderer.flipX = data.facingLeft;
 
         bool visible = IsPresentInThisArea();
         SyncColliderToBody();
@@ -127,17 +166,160 @@ public class ResidentView : MonoBehaviour
 
         // 位置防漂移：永远站回自己场景的门口高度（拼接 / 换场景都不会抬高）。
         Vector3 fixedPosition = transform.position;
-        if (!Mathf.Approximately(fixedPosition.y, homePosition.y))
+        float targetY = homePosition.y + SceneStitcher.OffsetYFor(area);
+        if (!Mathf.Approximately(fixedPosition.y, targetY))
         {
-            fixedPosition.y = homePosition.y;
+            fixedPosition.y = targetY;
             transform.position = fixedPosition;
         }
 
         if (!visible) return;
 
         float t = Mathf.Clamp01(data.warmth / 60f);
-        if (bodyRenderer && tintBodyByWarmth) bodyRenderer.color = Color.Lerp(warmthLow, warmthHigh, t);
+        if (bodyRenderer && tintBodyByWarmth && !customPose)
+            bodyRenderer.color = Color.Lerp(warmthLow, warmthHigh, t);
         if (doorLight != null) doorLight.Apply(data.warmth, data.awareness, data.hasAwareness);
+    }
+
+    public void SetFacing(bool faceLeft)
+    {
+        if (data != null) data.facingLeft = faceLeft;
+        if (bodyRenderer != null) bodyRenderer.flipX = faceLeft;
+    }
+
+    private void LoadPoseArtFromConfig()
+    {
+        CharacterArtConfig config = CharacterArtConfig.Load();
+        if (config == null) return;
+
+        CharacterArtEntry standing = config.ForResident(id);
+        if (standing != null && standing.HasArt)
+        {
+            ApplyConfiguredStandingArt(standing);
+            tintBodyByWarmth = false;
+        }
+
+        if (sittingSprite == null)
+        {
+            CharacterArtEntry entry = config.ForResidentSitting(id);
+            if (entry != null && entry.HasArt)
+            {
+                sittingSprite = entry.sprite;
+                sittingHeight = entry.height;
+                sittingFootOffsetY = entry.footOffsetY;
+                sittingSortingOrder = entry.sortingOrder;
+            }
+        }
+
+        if (walkingSprite == null)
+        {
+            CharacterArtEntry walking = config.ForResidentWalking(id);
+            if (walking != null && walking.HasArt)
+            {
+                walkingSprite = walking.sprite;
+                walkingHeight = walking.height;
+                walkingFootOffsetY = walking.footOffsetY;
+                walkingSortingOrder = walking.sortingOrder;
+            }
+        }
+
+        if (talkingSprite == null)
+        {
+            CharacterArtEntry talking = config.ForResidentTalking(id);
+            if (talking != null && talking.HasArt)
+            {
+                talkingSprite = talking.sprite;
+                talkingHeight = talking.height;
+                talkingFootOffsetY = talking.footOffsetY;
+                talkingSortingOrder = talking.sortingOrder;
+            }
+        }
+    }
+
+    private void ApplyConfiguredStandingArt(CharacterArtEntry entry)
+    {
+        if (bodyRenderer == null || entry == null || entry.sprite == null) return;
+
+        Sprite sprite = entry.sprite;
+        float spriteHeight = Mathf.Max(0.0001f, sprite.bounds.size.y);
+        float scale = Mathf.Max(0.05f, entry.height) / spriteHeight;
+        bodyRenderer.sprite = sprite;
+        bodyRenderer.transform.localScale = new Vector3(scale, scale, 1f);
+        float bottom = sprite.bounds.min.y * scale;
+        bodyRenderer.transform.localPosition =
+            new Vector3(0f, entry.footOffsetY - bottom, 0f);
+        bodyRenderer.color = Color.white;
+        bodyRenderer.sortingOrder = entry.sortingOrder;
+    }
+
+    private void CacheStandingPose()
+    {
+        if (bodyRenderer == null || poseCached) return;
+        standingSprite = bodyRenderer.sprite;
+        standingLocalScale = bodyRenderer.transform.localScale;
+        standingLocalPosition = bodyRenderer.transform.localPosition;
+        standingColor = bodyRenderer.color;
+        standingSortingOrder = bodyRenderer.sortingOrder;
+        poseCached = true;
+    }
+
+    private bool ApplyBodyPose(bool sit, NpcVisualPose actionPose)
+    {
+        if (bodyRenderer == null) return false;
+        CacheStandingPose();
+
+        Sprite sprite = null;
+        float height = 0f;
+        float footOffset = 0f;
+        int sortingOrder = standingSortingOrder;
+
+        if (sit && sittingSprite != null)
+        {
+            sprite = sittingSprite;
+            height = sittingHeight;
+            footOffset = sittingFootOffsetY;
+            sortingOrder = sittingSortingOrder;
+        }
+        else if (actionPose == NpcVisualPose.Walking && walkingSprite != null)
+        {
+            sprite = walkingSprite;
+            height = walkingHeight;
+            footOffset = walkingFootOffsetY;
+            sortingOrder = walkingSortingOrder;
+        }
+        else if (actionPose == NpcVisualPose.Talking && talkingSprite != null)
+        {
+            sprite = talkingSprite;
+            height = talkingHeight;
+            footOffset = talkingFootOffsetY;
+            sortingOrder = talkingSortingOrder;
+        }
+
+        if (sprite != null)
+        {
+            customPoseActive = true;
+            bodyRenderer.sprite = sprite;
+            float spriteHeight = Mathf.Max(0.0001f, sprite.bounds.size.y);
+            float scale = Mathf.Max(0.05f, height) / spriteHeight;
+            bodyRenderer.transform.localScale = new Vector3(scale, scale, 1f);
+            float bottom = sprite.bounds.min.y * scale;
+            bodyRenderer.transform.localPosition =
+                new Vector3(standingLocalPosition.x, footOffset - bottom, standingLocalPosition.z);
+            bodyRenderer.color = Color.white;
+            bodyRenderer.sortingOrder = sortingOrder;
+            return true;
+        }
+
+        if (customPoseActive)
+        {
+            customPoseActive = false;
+            bodyRenderer.sprite = standingSprite;
+            bodyRenderer.transform.localScale = standingLocalScale;
+            bodyRenderer.transform.localPosition = standingLocalPosition;
+            bodyRenderer.color = standingColor;
+            bodyRenderer.sortingOrder = standingSortingOrder;
+        }
+        return false;
     }
 
     /// <summary>

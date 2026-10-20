@@ -2,7 +2,8 @@ using NUnit.Framework;
 using UnityEngine;
 
 /// <summary>
-/// 结局判定（8 档）的纯逻辑单测：高 = 数值 &gt; 60，低 = 数值 ≤ 60。
+/// 八档旧结局合并为三档后的纯逻辑单测。
+/// 高 = 数值 &gt; 60，低 = 数值 ≤ 60。
 /// </summary>
 public class EndingRulesTests
 {
@@ -27,7 +28,6 @@ public class EndingRulesTests
         if (config != null) Object.DestroyImmediate(config);
     }
 
-    /// <summary>mother = 母亲；others = 老婆婆与大叔（同一档）；girl = 小女孩暖意。</summary>
     private void Arrange(float motherWarmth, float motherAwareness, float othersWarmth, float othersAwareness, float girlWarmth)
     {
         Set(ResidentId.Mother, motherWarmth, motherAwareness);
@@ -49,96 +49,96 @@ public class EndingRulesTests
     }
 
     [Test]
-    public void Farewell_MotherOpen_AndOthersHighHigh()
+    public void Farewell_BecomesBeforeSnowStops()
     {
         Arrange(80f, 80f, 80f, 80f, 50f);
-        Assert.AreEqual(EndingId.Farewell, Resolve());
+        Assert.AreEqual(EndingId.BeforeSnowStops, Resolve());
     }
 
     [Test]
-    public void MutualConcealment_MotherOpen_OthersKnowButCold()
+    public void PreviouslyMutualConcealment_BecomesWhenSheWasLittle()
     {
         Arrange(80f, 80f, 40f, 80f, 50f);
-        Assert.AreEqual(EndingId.MutualConcealment, Resolve());
+        Assert.AreEqual(EndingId.WhenSheWasLittle, Resolve());
     }
 
     [Test]
-    public void OnlyMotherKnows_MotherOpen_OthersLowLow()
+    public void PreviouslyOnlyMotherKnows_BecomesWhenSheWasLittle()
     {
         Arrange(80f, 80f, 40f, 40f, 50f);
-        Assert.AreEqual(EndingId.OnlyMotherKnows, Resolve());
+        Assert.AreEqual(EndingId.WhenSheWasLittle, Resolve());
     }
 
     [Test]
-    public void NobodySpoke_MotherKnowsButCold_OthersHighHigh()
+    public void PreviouslyNobodySpoke_BecomesWhenSheWasLittle()
     {
         Arrange(40f, 80f, 80f, 80f, 50f);
-        Assert.AreEqual(EndingId.NobodySpoke, Resolve());
+        Assert.AreEqual(EndingId.WhenSheWasLittle, Resolve());
     }
 
     [Test]
-    public void BuildingKnowsSilentToMother_MotherLow_OthersHighHigh()
+    public void PreviouslyBuildingKnowsSilentToMother_BecomesWhenSheWasLittle()
     {
         Arrange(40f, 40f, 80f, 80f, 50f);
-        Assert.AreEqual(EndingId.BuildingKnowsSilentToMother, Resolve());
+        Assert.AreEqual(EndingId.WhenSheWasLittle, Resolve());
     }
 
     [Test]
-    public void NobodySpoke_OthersKnowButCold()
+    public void PreviouslyNobodySpokeCold_BecomesWhenSheWasLittle()
     {
         Arrange(40f, 40f, 40f, 80f, 50f);
-        Assert.AreEqual(EndingId.NobodySpoke, Resolve());
+        Assert.AreEqual(EndingId.WhenSheWasLittle, Resolve());
     }
 
     [Test]
-    public void WholeBuildingUnaware_OthersWarmButUnaware()
+    public void PreviouslyWholeBuildingUnaware_BecomesRainInTheCorridor()
     {
         Arrange(40f, 40f, 80f, 40f, 50f);
-        Assert.AreEqual(EndingId.WholeBuildingUnaware, Resolve());
+        Assert.AreEqual(EndingId.RainInTheCorridor, Resolve());
     }
 
     [Test]
-    public void RainNeverStopped_AllLow()
+    public void PreviouslyRainNeverStopped_BecomesWhenSheWasLittle()
     {
         Arrange(40f, 40f, 40f, 40f, 40f);
-        Assert.AreEqual(EndingId.RainNeverStopped, Resolve());
+        Assert.AreEqual(EndingId.WhenSheWasLittle, Resolve());
     }
 
     [Test]
-    public void OnlyGirlRemembers_AllLowButGirlHigh()
+    public void PreviouslyOnlyGirlRemembers_BecomesWhenSheWasLittle()
     {
         Arrange(40f, 40f, 40f, 40f, 80f);
-        Assert.AreEqual(EndingId.OnlyGirlRemembers, Resolve());
+        Assert.AreEqual(EndingId.WhenSheWasLittle, Resolve());
     }
 
     [Test]
     public void Threshold_60IsLow_61IsHigh()
     {
-        // 60 不算高 → 全部低档 → 雨没停
         Arrange(60f, 60f, 60f, 60f, 60f);
-        Assert.AreEqual(EndingId.RainNeverStopped, Resolve());
+        Assert.AreEqual(EndingId.WhenSheWasLittle, Resolve());
 
-        // 61 算高 → 母亲开门 + 邻居都高 → 告别
         Arrange(61f, 61f, 61f, 61f, 61f);
-        Assert.AreEqual(EndingId.Farewell, Resolve());
+        Assert.AreEqual(EndingId.BeforeSnowStops, Resolve());
     }
 
     [Test]
-    public void MissingSession_FallsBackWithoutThrowing()
+    public void RainInTheCorridor_IgnoresMotherWarmthAndGirlWarmth()
     {
-        Assert.AreEqual(EndingId.RainNeverStopped, EndingRules.ResolveId(null, config));
+        Arrange(0f, 40f, 80f, 40f, 100f);
+        Assert.AreEqual(EndingId.RainInTheCorridor, Resolve());
     }
 
     [Test]
-    public void Titles_MatchDesign()
+    public void MissingSession_FallsBackToRainInTheCorridor()
     {
-        Assert.AreEqual("告别", EndingRules.TitleOf(EndingId.Farewell));
-        Assert.AreEqual("互相隐瞒", EndingRules.TitleOf(EndingId.MutualConcealment));
-        Assert.AreEqual("只有母亲一个人知道", EndingRules.TitleOf(EndingId.OnlyMotherKnows));
-        Assert.AreEqual("谁也没开口", EndingRules.TitleOf(EndingId.NobodySpoke));
-        Assert.AreEqual("全楼都知道了，却没人敢告诉母亲", EndingRules.TitleOf(EndingId.BuildingKnowsSilentToMother));
-        Assert.AreEqual("整栋楼都不知道他已经死了", EndingRules.TitleOf(EndingId.WholeBuildingUnaware));
-        Assert.AreEqual("雨没停", EndingRules.TitleOf(EndingId.RainNeverStopped));
-        Assert.AreEqual("只有小女孩还记着他", EndingRules.TitleOf(EndingId.OnlyGirlRemembers));
+        Assert.AreEqual(EndingId.RainInTheCorridor, EndingRules.ResolveId(null, config));
+    }
+
+    [Test]
+    public void Titles_MatchPDF()
+    {
+        Assert.AreEqual("楼道里的雨", EndingRules.TitleOf(EndingId.RainInTheCorridor));
+        Assert.AreEqual("她小时候", EndingRules.TitleOf(EndingId.WhenSheWasLittle));
+        Assert.AreEqual("雪停之前", EndingRules.TitleOf(EndingId.BeforeSnowStops));
     }
 }

@@ -39,6 +39,7 @@ public static class YuyinArtTool
     private static readonly string[] ScenePaths =
     {
         "Assets/Scenes/FirstFloor.unity",
+        "Assets/Scenes/SecondFloor.unity",
         "Assets/Scenes/Backyard.unity"
     };
 
@@ -128,6 +129,26 @@ public static class YuyinArtTool
         }
     }
 
+    /// <summary>只刷新图片导入设置和 CharacterArt 配置，不改任何场景 / Prefab。</summary>
+    public static void BindConfigFromCommandLine()
+    {
+        try
+        {
+            EnsureSpriteImportSettings();
+            CharacterArtConfig config = EnsureConfigAsset();
+            AutoBindSprites(config);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            Debug.Log("[余音·美术] 角色美术配置已刷新。");
+            EditorApplication.Exit(0);
+        }
+        catch (System.Exception exception)
+        {
+            Debug.LogException(exception);
+            EditorApplication.Exit(1);
+        }
+    }
+
     public static void RenderPreviewFromCommandLine()
     {
         try
@@ -183,7 +204,6 @@ public static class YuyinArtTool
         CharacterArtConfig config = EnsureConfigAsset();
         ApplyPlayerPrefab(config);
 
-        List<NpcPlacementSpec> specs = YuyinNpcSceneTool.GetSpecs(AreaId.FirstFloor);
         for (int i = 0; i < ResidentPrefabPaths.Length; i++)
         {
             string path = ResidentPrefabPaths[i];
@@ -195,7 +215,12 @@ public static class YuyinArtTool
                 ResidentView view = root.GetComponent<ResidentView>();
                 if (view == null) continue;
 
-                NpcPlacementSpec spec = FindSpec(specs, view.id);
+                NpcPlacementSpec spec = FindSpecAnyArea(view.id);
+                if (spec.id != view.id)
+                {
+                    Debug.LogWarning("[余音·美术] 找不到住户预制体规格：" + path);
+                    continue;
+                }
                 CharacterArtApplier.ApplyResident(view, spec, config);
                 PrefabUtility.SaveAsPrefabAsset(root, path);
             }
@@ -266,6 +291,20 @@ public static class YuyinArtTool
         return specs.Count > 0 ? specs[0] : default(NpcPlacementSpec);
     }
 
+    private static NpcPlacementSpec FindSpecAnyArea(ResidentId id)
+    {
+        AreaId[] areas = { AreaId.FirstFloor, AreaId.SecondFloor, AreaId.Backyard };
+        for (int a = 0; a < areas.Length; a++)
+        {
+            List<NpcPlacementSpec> specs = YuyinNpcSceneTool.GetSpecs(areas[a]);
+            for (int i = 0; i < specs.Count; i++)
+            {
+                if (specs[i].id == id) return specs[i];
+            }
+        }
+        return default(NpcPlacementSpec);
+    }
+
     // ------------------------------------------------------------------
     // 配置资产 + 导入设置
     // ------------------------------------------------------------------
@@ -293,7 +332,7 @@ public static class YuyinArtTool
 
     /// <summary>
     /// 按约定文件名自动绑定立绘（只在配置里留空时生效，不覆盖手动指定的）：
-    /// Player.png / Grandma.png / Uncle.png / Girl.png / Mother.png。
+    /// 站立：Player / Grandma / Uncle / Girl / Mother；坐姿：Grandma_Sitting / Uncle_Sitting。
     /// </summary>
     private static void AutoBindSprites(CharacterArtConfig config)
     {
@@ -304,8 +343,45 @@ public static class YuyinArtTool
         ResidentId[] ids = { ResidentId.Grandma, ResidentId.Uncle, ResidentId.Girl, ResidentId.Mother };
         for (int i = 0; i < ids.Length; i++)
         {
-            AutoBind(config, config.ForResident(ids[i]), FileNameFor(ids[i]));
+            CharacterArtEntry standing = config.ForResident(ids[i]);
+            AutoBind(config, standing, FileNameFor(ids[i]));
+            if (standing.sprite == null)
+                AutoBind(config, standing, FileNameFor(ids[i]) + "_Standing");
+
+            AutoBindPose(config, config.ForResidentSitting(ids[i]), FileNameFor(ids[i]) + "_Sitting");
+            AutoBindPose(config, config.ForResidentWalking(ids[i]), FileNameFor(ids[i]) + "_Walking");
+            CharacterArtEntry talking = config.ForResidentTalking(ids[i]);
+            AutoBindPose(config, talking, FileNameFor(ids[i]) + "_Talking");
+
+            if (talking.sprite == null && standing.sprite != null)
+                CopyPose(standing, talking, config);
+            if (standing.sprite == null && talking.sprite != null)
+                CopyPose(talking, standing, config);
         }
+    }
+
+    private static void CopyPose(CharacterArtEntry source, CharacterArtEntry target, CharacterArtConfig config)
+    {
+        if (source == null || target == null) return;
+        target.sprite = source.sprite;
+        target.height = source.height;
+        target.footOffsetY = source.footOffsetY;
+        target.sortingOrder = source.sortingOrder;
+        target.tintByWarmth = false;
+        EditorUtility.SetDirty(config);
+    }
+
+    private static void AutoBindPose(CharacterArtConfig config, CharacterArtEntry entry, string fileName)
+    {
+        if (entry == null || entry.sprite != null) return;
+
+        string path = CharacterArtFolder + "/" + fileName + ".png";
+        Sprite sprite = AssetDatabase.LoadAssetAtPath<Sprite>(path);
+        if (sprite == null) return;
+
+        entry.sprite = sprite;
+        EditorUtility.SetDirty(config);
+        Debug.Log("[余音·美术] 自动绑定动作立绘：" + path);
     }
 
     private static void AutoBind(CharacterArtConfig config, CharacterArtEntry entry, string fileName)

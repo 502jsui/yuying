@@ -22,10 +22,20 @@ public class ItemView : MonoBehaviour
 
     private Collider2D[] colliders;
     private bool subscribed;
+    private ItemArtEntry art;
+    private Sprite activeArtSprite;
 
     private void Awake()
     {
         if (area == AreaId.None) area = AreaIdUtil.FromSceneName(gameObject.scene.name);
+        if (spriteRenderer == null)
+        {
+            Transform body = transform.Find("Body");
+            if (body != null) spriteRenderer = body.GetComponent<SpriteRenderer>();
+            if (spriteRenderer == null) spriteRenderer = GetComponentInChildren<SpriteRenderer>(true);
+        }
+        ItemArtConfig config = ItemArtConfig.Load();
+        art = config != null ? config.Get(itemId) : null;
     }
 
     private void OnEnable()
@@ -109,7 +119,46 @@ public class ItemView : MonoBehaviour
         if (visible && !string.IsNullOrEmpty(data.placementId))
         {
             PlacementPoint point = PlacementPoint.Find(data.placementId);
-            if (point != null) transform.position = point.AnchorPosition;
+            if (point != null)
+            {
+                transform.position = point.AnchorPosition;
+                Sprite side = point.surface == PlacementSurface.Ground && art != null ? art.sideSprite : null;
+                ApplyArt(side);
+            }
+        }
+        else if (visible)
+        {
+            ApplyArt(null);
+        }
+    }
+
+    private void ApplyArt(Sprite preferredSide)
+    {
+        if (spriteRenderer == null || art == null) return;
+
+        Sprite sprite = preferredSide != null ? preferredSide : art.frontSprite;
+        if (sprite == null) return;
+        if (activeArtSprite == sprite) return;
+        activeArtSprite = sprite;
+
+        spriteRenderer.sprite = sprite;
+        spriteRenderer.color = Color.white;
+        spriteRenderer.sortingOrder = art.sortingOrder;
+
+        float spriteHeight = Mathf.Max(0.0001f, sprite.bounds.size.y);
+        float scale = Mathf.Max(0.05f, art.worldHeight) / spriteHeight;
+        spriteRenderer.transform.localScale = new Vector3(scale, scale, 1f);
+        spriteRenderer.transform.localPosition = new Vector3(
+            0f,
+            art.hangFromTop ? -art.worldHeight : 0f,
+            0f);
+
+        float worldWidth = sprite.bounds.size.x * scale;
+        BoxCollider2D box = GetComponent<BoxCollider2D>();
+        if (box != null)
+        {
+            box.size = new Vector2(worldWidth * 0.85f, art.worldHeight * 0.9f);
+            box.offset = new Vector2(0f, art.hangFromTop ? -art.worldHeight * 0.5f : art.worldHeight * 0.5f);
         }
     }
 

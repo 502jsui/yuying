@@ -1,19 +1,22 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 /// <summary>
-/// NPC 行动阶段：把「一楼」和「后院」左右无缝拼成一个整场景，
-/// 相机拉远看全两边，住户就能自由穿梭两个场景（放物品 / 停留）。
-/// 行动阶段结束再拆开、相机恢复。
-///
-/// 拼接规则：一楼永远在后院左边，接缝在两边相接的那条边上。
+/// NPC 行动阶段的整栋楼宽镜头：
+///   一楼在底层，二楼与一楼同宽并叠在正上方，后院接在一楼右侧。
+/// 楼梯在 x=8.6 对齐；整栋楼宽镜头的 16:9 画幅为 38.4 × 21.6。
+/// 行动结束再拆开、相机恢复。
 /// </summary>
 public class SceneStitcher : MonoBehaviour
 {
     /// <summary>每个场景的宽度（19.2 = 2 × 5.4 × 16/9），见相机规范。</summary>
     public const float SceneWidth = 19.2f;
     public const float HalfWidth = SceneWidth * 0.5f;
+    public const float SceneHeight = 10.8f;
+    public const float HalfHeight = SceneHeight * 0.5f;
+    private const float FloorOffsetY = 4.8f;
 
     public static SceneStitcher Instance { get; private set; }
     public static bool IsStitching { get; private set; }
@@ -21,7 +24,7 @@ public class SceneStitcher : MonoBehaviour
     /// <summary>只在「正在加载拼接副本」这一瞬间为 true：用来让副本的 GameManager 不要接管。</summary>
     public static bool IsLoadingDuplicate { get; private set; }
 
-    /// <summary>拼接是否真的生效（副本已加载完）。</summary>
+    /// <summary>拼接是否真的生效（两个副本都已加载完）。</summary>
     public static bool IsActive
     {
         get { return IsStitching && Instance != null && Instance.loaded; }
@@ -30,33 +33,41 @@ public class SceneStitcher : MonoBehaviour
     /// <summary>玩家所在的那个场景（偏移 0）。</summary>
     public static AreaId BaseArea { get; private set; }
 
-    /// <summary>拼接进来的另一个场景。</summary>
+    /// <summary>兼容旧调用：主副本（一楼时是后院，二楼/后院时是一楼）。</summary>
     public static AreaId OtherArea { get; private set; }
 
-    /// <summary>另一个场景整体的 X 偏移。</summary>
+    /// <summary>兼容旧调用：主副本的 X 偏移。</summary>
     public static float OtherOffset { get; private set; }
 
+    private const int MaxStitched = 2;
+    private static readonly AreaId[] stitchedAreas = new AreaId[MaxStitched];
+    private static readonly Vector2[] stitchedOffsets = new Vector2[MaxStitched];
+    private static int stitchedCount;
+
     private bool loaded;
+    private readonly List<AreaId> loadedAreas = new List<AreaId>();
     private SceneCameraFollow2D framing;
     private float savedMinX, savedMaxX, savedMinY, savedMaxY;
 
-    /// <summary>一楼天花板（盖子）的高度：雨落到这条线就"消失"。</summary>
-    private const float RoofTopY = 4.35f;
+    /// <summary>二楼屋顶的本地高度：拼接时雨落到这条世界高度以下就隐藏。</summary>
+    private const float RoofTopY = 1.4f;
+    private const float GroundY = -3.4f;
 
     private RainController stitchedRain;
-    private readonly System.Collections.Generic.List<GameObject> disabledRainObjects =
-        new System.Collections.Generic.List<GameObject>();
-    private GameObject roofLid;
+    private readonly List<GameObject> disabledRainObjects = new List<GameObject>();
+    private PanoramaBackdropView stitchedBackdrop;
+    private readonly List<PanoramaBackdropView> disabledBackdrops = new List<PanoramaBackdropView>();
 
     private void Awake()
     {
         if (Instance != null && Instance != this) { Destroy(this); return; }
         Instance = this;
 
-        // 新的 GameRoot：清掉可能残留的拼接状态（上一轮被打断时可能没 End）。
         IsStitching = false;
         IsLoadingDuplicate = false;
         loaded = false;
+        loadedAreas.Clear();
+        stitchedCount = 0;
     }
 
     private void OnDestroy()
@@ -72,7 +83,12 @@ public class SceneStitcher : MonoBehaviour
     {
         IsStitching = false;
         IsLoadingDuplicate = false;
-        if (Instance != null) Instance.loaded = false;
+        if (Instance != null)
+        {
+            Instance.loaded = false;
+            Instance.loadedAreas.Clear();
+        }
+        stitchedCount = 0;
     }
 
     // ------------------------------------------------------------------
@@ -81,9 +97,32 @@ public class SceneStitcher : MonoBehaviour
 
     public static float OffsetFor(AreaId area)
     {
-        if (!IsStitching) return 0f;
-        if (area == OtherArea) return OtherOffset;
+        if (!IsStitching || area == BaseArea) return 0f;
+        for (int i = 0; i < stitchedCount; i++)
+        {
+            if (stitchedAreas[i] == area) return stitchedOffsets[i].x;
+        }
         return 0f;
+    }
+
+    public static float OffsetYFor(AreaId area)
+    {
+        if (!IsStitching || area == BaseArea) return 0f;
+        for (int i = 0; i < stitchedCount; i++)
+        {
+            if (stitchedAreas[i] == area) return stitchedOffsets[i].y;
+        }
+        return 0f;
+    }
+
+    public static Vector2 OffsetFor2D(AreaId area)
+    {
+        if (!IsStitching || area == BaseArea) return Vector2.zero;
+        for (int i = 0; i < stitchedCount; i++)
+        {
+            if (stitchedAreas[i] == area) return stitchedOffsets[i];
+        }
+        return Vector2.zero;
     }
 
     public static float WorldX(AreaId area, float localX)
@@ -96,22 +135,44 @@ public class SceneStitcher : MonoBehaviour
         return worldX - OffsetFor(area);
     }
 
-    /// <summary>拼接世界里这个横坐标属于哪个区域。</summary>
+    /// <summary>
+    /// 拼接世界里这个横坐标属于哪个下层区域（一楼/后院）。
+    /// 二楼在上方，不参与这个映射；二楼行动不依赖走位。
+    /// </summary>
     public static AreaId AreaAtWorldX(float worldX)
     {
         if (!IsStitching) return BaseArea;
 
-        if (OtherOffset > 0f) return worldX >= HalfWidth ? OtherArea : BaseArea;
-        return worldX <= -HalfWidth ? OtherArea : BaseArea;
+        float first = OffsetFor(AreaId.FirstFloor);
+        float backyard = OffsetFor(AreaId.Backyard);
+        float seam = (first + backyard) * 0.5f;
+        return worldX >= seam ? AreaId.Backyard : AreaId.FirstFloor;
     }
 
-    /// <summary>拼接世界的左右边界。</summary>
+    /// <summary>整栋楼拼接后的左右边界（兼容旧调用）。</summary>
     public static void WorldBounds(out float minX, out float maxX)
     {
-        float a = Mathf.Min(0f, OtherOffset) - HalfWidth;
-        float b = Mathf.Max(0f, OtherOffset) + HalfWidth;
-        minX = a;
-        maxX = b;
+        float minY, maxY;
+        WorldBounds(out minX, out maxX, out minY, out maxY);
+    }
+
+    /// <summary>整栋楼拼接后的完整边界（一楼 + 二楼 + 后院）。</summary>
+    public static void WorldBounds(out float minX, out float maxX, out float minY, out float maxY)
+    {
+        minX = -HalfWidth;
+        maxX = HalfWidth;
+        minY = -HalfHeight;
+        maxY = HalfHeight;
+        if (!IsStitching) return;
+
+        for (int i = 0; i < stitchedCount; i++)
+        {
+            Vector2 offset = stitchedOffsets[i];
+            minX = Mathf.Min(minX, offset.x - HalfWidth);
+            maxX = Mathf.Max(maxX, offset.x + HalfWidth);
+            minY = Mathf.Min(minY, offset.y - HalfHeight);
+            maxY = Mathf.Max(maxY, offset.y + HalfHeight);
+        }
     }
 
     // ------------------------------------------------------------------
@@ -124,31 +185,38 @@ public class SceneStitcher : MonoBehaviour
         if (baseArea == AreaId.None) yield break;
 
         BaseArea = baseArea;
-        OtherArea = baseArea == AreaId.FirstFloor ? AreaId.Backyard : AreaId.FirstFloor;
-        OtherOffset = OtherArea == AreaId.Backyard ? SceneWidth : -SceneWidth;
+        BuildLayout(baseArea);
         IsStitching = true;
+        loaded = false;
+        loadedAreas.Clear();
 
-        string otherScene = SceneNameOf(OtherArea);
-        IsLoadingDuplicate = true;
-        AsyncOperation operation = SceneManager.LoadSceneAsync(otherScene, LoadSceneMode.Additive);
-        while (operation != null && !operation.isDone) yield return null;
-
-        Scene scene = SceneManager.GetSceneByName(otherScene);
-        if (scene.IsValid() && scene.isLoaded)
+        for (int i = 0; i < stitchedCount; i++)
         {
-            loaded = true;
+            AreaId area = stitchedAreas[i];
+            string sceneName = SceneNameOf(area);
+            IsLoadingDuplicate = true;
+            AsyncOperation operation = SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
+            while (operation != null && !operation.isDone) yield return null;
 
-            GameObject[] roots = scene.GetRootGameObjects();
-            for (int i = 0; i < roots.Length; i++)
+            Scene scene = SceneManager.GetSceneByName(sceneName);
+            if (scene.IsValid() && scene.isLoaded)
             {
-                roots[i].transform.position += new Vector3(OtherOffset, 0f, 0f);
-            }
+                Vector2 offset = stitchedOffsets[i];
+                GameObject[] roots = scene.GetRootGameObjects();
+                for (int r = 0; r < roots.Length; r++)
+                {
+                    roots[r].transform.position += new Vector3(offset.x, offset.y, 0f);
+                }
 
-            DisableDuplicates(scene);
-            BindCopyViews(scene);
+                DisableDuplicates(scene);
+                BindCopyViews(scene);
+                loadedAreas.Add(area);
+            }
         }
 
         IsLoadingDuplicate = false;
+        loaded = loadedAreas.Count == stitchedCount;
+        SetupPanoramaBackdrop();
         SetupStitchedRain();
         yield return AnimateWideFraming();
     }
@@ -160,21 +228,69 @@ public class SceneStitcher : MonoBehaviour
         // 先在拼接状态里把镜头动画拉回单场景，再拆场景，避免瞬切。
         yield return AnimateBackToSingleScene();
 
+        TeardownPanoramaBackdrop();
+        TeardownStitchedRain();
         IsStitching = false;
         IsLoadingDuplicate = false;
-        TeardownStitchedRain();
+        loaded = false;
 
-        if (loaded)
+        for (int i = 0; i < loadedAreas.Count; i++)
         {
-            loaded = false;
-            AsyncOperation operation = SceneManager.UnloadSceneAsync(SceneNameOf(OtherArea));
+            AsyncOperation operation = SceneManager.UnloadSceneAsync(SceneNameOf(loadedAreas[i]));
             while (operation != null && !operation.isDone) yield return null;
         }
+
+        loadedAreas.Clear();
+        stitchedCount = 0;
+        OtherArea = AreaId.None;
+        OtherOffset = 0f;
+    }
+
+    private static void BuildLayout(AreaId baseArea)
+    {
+        stitchedCount = 0;
+        OtherArea = AreaId.None;
+        OtherOffset = 0f;
+
+        if (baseArea == AreaId.FirstFloor)
+        {
+            AddStitched(AreaId.SecondFloor, 0f, FloorOffsetY);
+            AddStitched(AreaId.Backyard, 19.2f, 0f);
+            OtherArea = AreaId.Backyard;
+            OtherOffset = 19.2f;
+        }
+        else if (baseArea == AreaId.SecondFloor)
+        {
+            AddStitched(AreaId.FirstFloor, 0f, -FloorOffsetY);
+            AddStitched(AreaId.Backyard, 19.2f, -FloorOffsetY);
+            OtherArea = AreaId.FirstFloor;
+            OtherOffset = 0f;
+        }
+        else if (baseArea == AreaId.Backyard)
+        {
+            AddStitched(AreaId.FirstFloor, -19.2f, 0f);
+            AddStitched(AreaId.SecondFloor, -19.2f, FloorOffsetY);
+            OtherArea = AreaId.FirstFloor;
+            OtherOffset = -19.2f;
+        }
+    }
+
+    private static void AddStitched(AreaId area, float x, float y)
+    {
+        if (stitchedCount >= MaxStitched) return;
+        stitchedAreas[stitchedCount] = area;
+        stitchedOffsets[stitchedCount] = new Vector2(x, y);
+        stitchedCount++;
     }
 
     private static string SceneNameOf(AreaId area)
     {
-        return area == AreaId.Backyard ? "Backyard" : "FirstFloor";
+        switch (area)
+        {
+            case AreaId.SecondFloor: return "SecondFloor";
+            case AreaId.Backyard: return "Backyard";
+            default: return "FirstFloor";
+        }
     }
 
     /// <summary>拼接副本只负责显示：关掉它自己的 GameManager / 相机 / 音频 / 玩家。</summary>
@@ -194,13 +310,12 @@ public class SceneStitcher : MonoBehaviour
 
             PlayerController[] players = roots[i].GetComponentsInChildren<PlayerController>(true);
             for (int p = 0; p < players.Length; p++) players[p].gameObject.SetActive(false);
-
         }
     }
 
     /// <summary>
     /// 拼接副本自己的 GameManager 被关掉了，这里手动把它的 View 接到本局数据上，
-    /// 否则副本里的 NPC / 物品用的是 Prefab 上的旧数据 → 全被隐藏，看不到对面场景。
+    /// 否则副本里的 NPC / 物品用的是 Prefab 上的旧数据 → 全被隐藏，看不到其他区域。
     /// </summary>
     private static void BindCopyViews(Scene scene)
     {
@@ -251,11 +366,13 @@ public class SceneStitcher : MonoBehaviour
         savedMinY = framing.sceneMinY;
         savedMaxY = framing.sceneMaxY;
 
-        float minX, maxX;
-        WorldBounds(out minX, out maxX);
+        float minX, maxX, minY, maxY;
+        WorldBounds(out minX, out maxX, out minY, out maxY);
         framing.sceneMinX = minX;
         framing.sceneMaxX = maxX;
-        framing.AnimateToBounds(minX, maxX, framing.sceneMinY, framing.sceneMaxY, framing.npcZoomOutDuration);
+        framing.sceneMinY = minY;
+        framing.sceneMaxY = maxY;
+        framing.AnimateToBounds(minX, maxX, minY, maxY, framing.npcZoomOutDuration);
         while (framing != null && framing.IsAnimating) yield return null;
     }
 
@@ -273,18 +390,78 @@ public class SceneStitcher : MonoBehaviour
         framing = null;
     }
 
+    /// <summary>拼接宽镜头只显示一份完整全景，普通区域背景留到结束再恢复。</summary>
+    private void SetupPanoramaBackdrop()
+    {
+        disabledBackdrops.Clear();
+        stitchedBackdrop = null;
+
+        PanoramaBackdropView[] views = Object.FindObjectsOfType<PanoramaBackdropView>(true);
+        Scene active = SceneManager.GetActiveScene();
+
+        for (int i = 0; i < views.Length; i++)
+        {
+            PanoramaBackdropView view = views[i];
+            if (view == null) continue;
+            if (stitchedBackdrop == null && view.gameObject.scene == active)
+            {
+                stitchedBackdrop = view;
+            }
+        }
+
+        if (stitchedBackdrop == null && views.Length > 0) stitchedBackdrop = views[0];
+
+        for (int i = 0; i < views.Length; i++)
+        {
+            PanoramaBackdropView view = views[i];
+            if (view == null || view == stitchedBackdrop) continue;
+            view.SetVisible(false);
+            disabledBackdrops.Add(view);
+        }
+
+        if (stitchedBackdrop != null)
+        {
+            Vector3 firstFloorOffset = new Vector3(
+                OffsetFor(AreaId.FirstFloor),
+                OffsetYFor(AreaId.FirstFloor),
+                0f);
+            stitchedBackdrop.ApplyStitchedPose(firstFloorOffset);
+        }
+        else
+        {
+            Debug.LogWarning("[SceneStitcher] 拼接时找不到 PanoramaBackdropView，宽镜头没有正式背景。");
+        }
+    }
+
+    private void TeardownPanoramaBackdrop()
+    {
+        for (int i = 0; i < disabledBackdrops.Count; i++)
+        {
+            if (disabledBackdrops[i] != null) disabledBackdrops[i].SetVisible(true);
+        }
+        disabledBackdrops.Clear();
+
+        if (stitchedBackdrop != null) stitchedBackdrop.RestoreNormalPose();
+        stitchedBackdrop = null;
+    }
+
     // ------------------------------------------------------------------
-    // 雨 / 雷：铺满整个拼接场景，一楼那半边加「盖子」
+    // 雨 / 雷：铺满整栋楼，雨丝落到二楼屋顶线以下就消失
     // ------------------------------------------------------------------
 
     private void SetupStitchedRain()
     {
-        float minX, maxX;
-        WorldBounds(out minX, out maxX);
+        float minX, maxX, minY, maxY;
+        WorldBounds(out minX, out maxX, out minY, out maxY);
 
-        // 一楼在拼接世界里的左右范围（可能在左半边或右半边）。
-        float houseMinX = OffsetFor(AreaId.FirstFloor) - HalfWidth;
-        float houseMaxX = OffsetFor(AreaId.FirstFloor) + HalfWidth;
+        float firstX = OffsetFor(AreaId.FirstFloor);
+        float lowerY = OffsetYFor(AreaId.FirstFloor);
+        float houseMinX = firstX - HalfWidth;
+        float houseMaxX = firstX + HalfWidth;
+        float worldGroundY = lowerY + GroundY;
+        float roofY = OffsetYFor(AreaId.SecondFloor) + RoofTopY;
+        float aspect = Camera.main != null ? Mathf.Max(0.1f, Camera.main.aspect) : 16f / 9f;
+        float rainHeight = Mathf.Max(maxY - minY, (maxX - minX) / aspect);
 
         RainController[] rains = Object.FindObjectsOfType<RainController>();
         stitchedRain = null;
@@ -299,49 +476,24 @@ public class SceneStitcher : MonoBehaviour
             {
                 stitchedRain = rain;
                 rain.ApplyStitchedLayout(
-                    new Vector3((minX + maxX) * 0.5f, 0f, 0f),
+                    new Vector3((minX + maxX) * 0.5f, (minY + maxY) * 0.5f, 0f),
                     maxX - minX,
-                    10.8f,
+                    rainHeight,
+                    worldGroundY,
                     houseMinX,
                     houseMaxX,
-                    RoofTopY);
+                    roofY);
             }
             else
             {
-                // 只留一套雨，避免两边叠加成双倍雨量。
                 disabledRainObjects.Add(rain.gameObject);
                 rain.gameObject.SetActive(false);
             }
         }
-
-        CreateRoofLid(houseMinX, houseMaxX);
-    }
-
-    /// <summary>一楼头上的盖子：画在雨的上层，雨丝到这条线就消失。</summary>
-    private void CreateRoofLid(float minX, float maxX)
-    {
-        roofLid = new GameObject("Stitch_RoofLid");
-        roofLid.transform.position = new Vector3((minX + maxX) * 0.5f, RoofTopY, 0f);
-        roofLid.transform.localScale = new Vector3(Mathf.Max(0.1f, maxX - minX), 0.5f, 1f);
-
-        SpriteRenderer renderer = roofLid.AddComponent<SpriteRenderer>();
-        renderer.sprite = Sprite.Create(
-            Texture2D.whiteTexture,
-            new Rect(0f, 0f, 1f, 1f),
-            new Vector2(0.5f, 0.5f),
-            1f);
-        renderer.color = new Color(0.09f, 0.10f, 0.12f, 1f);
-        renderer.sortingOrder = 60; // 高于前景雨(30)
     }
 
     private void TeardownStitchedRain()
     {
-        if (roofLid != null)
-        {
-            Object.Destroy(roofLid);
-            roofLid = null;
-        }
-
         for (int i = 0; i < disabledRainObjects.Count; i++)
         {
             if (disabledRainObjects[i] != null) disabledRainObjects[i].SetActive(true);

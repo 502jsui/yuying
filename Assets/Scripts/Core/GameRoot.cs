@@ -76,6 +76,7 @@ public class GameRoot : MonoBehaviour
         gameObject.AddComponent<DebugOverlay>();
         gameObject.AddComponent<PromptOverlay>();
         gameObject.AddComponent<SceneFadeOverlay>();
+        gameObject.AddComponent<EndingDirector>();
         SceneManager.sceneLoaded += OnSceneLoaded;
 
         Debug.Log("[GameRoot] 基础设施初始化完成。");

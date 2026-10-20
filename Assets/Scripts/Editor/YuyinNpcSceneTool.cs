@@ -40,9 +40,6 @@ public static class YuyinNpcSceneTool
     private const string RootName = "NPCs";
     private const int ResidentLayer = 7;
 
-    /// <summary>母亲本次不做：先不生成母亲。要启用改成 true 再跑一次菜单。</summary>
-    private const bool IncludeMother = false;
-
     [MenuItem("Tools/余音/在当前场景补齐 NPC")]
     public static void EnsureInCurrentScene()
     {
@@ -50,7 +47,7 @@ public static class YuyinNpcSceneTool
         AreaId area = AreaIdUtil.FromSceneName(scene.name);
         if (area == AreaId.None)
         {
-            Notify("当前场景不是 FirstFloor / Backyard，无法判断区域。");
+            Notify("当前场景不是 FirstFloor / SecondFloor / Backyard，无法判断区域。");
             return;
         }
 
@@ -68,7 +65,7 @@ public static class YuyinNpcSceneTool
         for (int i = 0; i < specs.Count; i++)
         {
             NpcPlacementSpec spec = specs[i];
-            if (!IncludeMother && spec.id == ResidentId.Mother) continue;
+            if (spec.id == ResidentId.Mother && area != AreaId.SecondFloor) continue;
 
             ResidentView existing = FindResidentView(scene, spec.id);
             if (existing != null)
@@ -102,6 +99,9 @@ public static class YuyinNpcSceneTool
             EditorSceneManager.OpenScene("Assets/Scenes/Backyard.unity", OpenSceneMode.Single);
             EnsureInCurrentScene();
 
+            EditorSceneManager.OpenScene("Assets/Scenes/SecondFloor.unity", OpenSceneMode.Single);
+            EnsureInCurrentScene();
+
             AssetDatabase.SaveAssets();
             EditorApplication.Exit(0);
         }
@@ -116,27 +116,74 @@ public static class YuyinNpcSceneTool
     // 摆放
     // ------------------------------------------------------------------
 
-    /// <summary>在一楼 / 后院各自的默认位置和巡逻范围。x 对应三扇门：-6 老婆婆、0 大叔、6 小女孩。</summary>
+    /// <summary>住户默认位置已经按正式全景里的门位校准。</summary>
     public static List<NpcPlacementSpec> GetSpecs(AreaId area)
     {
+        if (area == AreaId.SecondFloor)
+        {
+            return new List<NpcPlacementSpec>
+            {
+                Spec(ResidentId.Mother, area, SceneLayoutMetrics.MotherDoorX, -2.35f, 0.85f, 2.10f, -6.2f, -5.3f, 0.20f),
+                Spec(ResidentId.Girl, area, SceneLayoutMetrics.GirlDoorX, -2.7f, 0.60f, 1.40f, 4.5f, 8.0f, 1.40f)
+            };
+        }
+
         if (area == AreaId.Backyard)
         {
             return new List<NpcPlacementSpec>
             {
-                Spec(ResidentId.Grandma, area, -5.0f, -1.6f, 0.80f, 2.00f, -6.0f, -3.0f, 0.30f),
-                Spec(ResidentId.Uncle, area, 0.0f, -1.6f, 0.90f, 2.30f, -2.0f, 2.0f, 0.30f),
-                Spec(ResidentId.Girl, area, 5.0f, -1.9f, 0.60f, 1.40f, 2.0f, 8.0f, 1.40f),
-                Spec(ResidentId.Mother, area, -8.0f, -1.6f, 0.85f, 2.10f, -8.6f, -7.0f, 0.20f)
+                Spec(ResidentId.Grandma, area, -5.0f, -2.4f, 0.80f, 2.00f, -6.0f, -3.0f, 0.30f),
+                Spec(ResidentId.Uncle, area, 0.0f, -2.25f, 0.90f, 2.30f, -2.0f, 2.0f, 0.30f),
+                Spec(ResidentId.Girl, area, 5.0f, -2.7f, 0.60f, 1.40f, 2.0f, 8.0f, 1.40f)
             };
         }
 
         return new List<NpcPlacementSpec>
         {
-            Spec(ResidentId.Grandma, area, -6.0f, -1.5f, 0.80f, 2.00f, -7.0f, -5.0f, 0.30f),
-            Spec(ResidentId.Uncle, area, 0.0f, -1.5f, 0.90f, 2.30f, -1.0f, 1.0f, 0.30f),
-            Spec(ResidentId.Girl, area, 6.0f, -1.7f, 0.60f, 1.40f, 2.5f, 8.0f, 1.40f),
-            Spec(ResidentId.Mother, area, -8.6f, -1.5f, 0.85f, 2.10f, -9.0f, -8.0f, 0.20f)
+            Spec(ResidentId.Grandma, area, SceneLayoutMetrics.GrandmaDoorX, -2.4f, 0.80f, 2.00f, -6.2f, -4.5f, 0.30f),
+            Spec(ResidentId.Uncle, area, SceneLayoutMetrics.UncleDoorX, -2.25f, 0.90f, 2.30f, 2.5f, 4.2f, 0.30f)
         };
+    }
+
+    /// <summary>布局工具专用：强制住户移动到正式全景锚点，并移除当前楼层不该有的 View。</summary>
+    public static void ApplyPanoramaLayout(Scene scene, AreaId area)
+    {
+        GameManager manager = FindFirstInScene<GameManager>(scene);
+        if (manager == null) return;
+
+        List<NpcPlacementSpec> specs = GetSpecs(area);
+        List<ResidentView> views = FindAllInScene<ResidentView>(scene);
+        for (int i = views.Count - 1; i >= 0; i--)
+        {
+            ResidentView view = views[i];
+            if (view != null && !ContainsSpec(specs, view.id)) Object.DestroyImmediate(view.gameObject);
+        }
+
+        GameObject root = FindOrCreateRoot(scene, RootName);
+        for (int i = 0; i < specs.Count; i++)
+        {
+            NpcPlacementSpec spec = specs[i];
+            ResidentView existing = FindResidentView(scene, spec.id);
+            if (existing == null)
+            {
+                SpawnPlaceholder(root.transform, spec);
+                continue;
+            }
+
+            existing.transform.position = spec.position;
+            RepairExisting(existing, spec);
+            NpcPatrol2D patrol = existing.GetComponent<NpcPatrol2D>();
+            if (patrol != null)
+            {
+                patrol.minX = spec.patrolMinX;
+                patrol.maxX = spec.patrolMaxX;
+                patrol.speed = spec.patrolSpeed;
+                EditorUtility.SetDirty(patrol);
+            }
+            EditorUtility.SetDirty(existing);
+        }
+
+        EnsureManagerWiring(scene, manager);
     }
 
     private static NpcPlacementSpec Spec(ResidentId id, AreaId area, float x, float y, float width, float height, float patrolMinX, float patrolMaxX, float speed)
@@ -281,6 +328,15 @@ public static class YuyinNpcSceneTool
             if (views[i] != null && views[i].id == id) return views[i];
         }
         return null;
+    }
+
+    private static bool ContainsSpec(List<NpcPlacementSpec> specs, ResidentId id)
+    {
+        for (int i = 0; i < specs.Count; i++)
+        {
+            if (specs[i].id == id) return true;
+        }
+        return false;
     }
 
     private static T FindFirstInScene<T>(Scene scene) where T : Component

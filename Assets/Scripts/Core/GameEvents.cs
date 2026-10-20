@@ -25,6 +25,7 @@ public struct RoundEndedEvent
 public struct GameOverEvent
 {
     public GameSession session;
+    public EndingResult ending;
 }
 
 /// <summary>NPC 行动阶段开始，相机应拉远、玩家移动应被锁住。</summary>
@@ -98,6 +99,12 @@ public struct NpcStateChangedEvent
     public ResidentId id;
     public NpcState previous;
     public NpcState current;
+}
+
+public struct NpcPoseChangedEvent
+{
+    public ResidentId id;
+    public NpcVisualPose pose;
 }
 
 /// <summary>住户换区域（跨场景走位 / 传送）。表现层据此显示 / 隐藏各场景里的那一份。</summary>

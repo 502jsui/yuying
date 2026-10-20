@@ -26,8 +26,8 @@ Transform:
   m_GameObject: {fileID: 622281512636356289}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.9, y: 2.3, z: 1}
+  m_LocalPosition: {x: 0, y: -1.15, z: 0}
+  m_LocalScale: {x: 0.16300496, y: 0.16300496, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 3523617290125638171}
@@ -73,8 +73,8 @@ SpriteRenderer:
   m_SortingLayerID: 796975133
   m_SortingLayer: 0
   m_SortingOrder: 5
-  m_Sprite: {fileID: 7482667652216324306, guid: 311925a002f4447b3a28927169b83ea6, type: 3}
-  m_Color: {r: 0.5019608, g: 0.5647059, b: 0.627451, a: 1}
+  m_Sprite: {fileID: 21300000, guid: ee710f3406b84c9da2c89c4c9e4e6154, type: 3}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -136,18 +136,30 @@ MonoBehaviour:
   bodyRenderer: {fileID: 5816249591631753593}
   doorLight: {fileID: 0}
   doorLightRenderer: {fileID: 0}
+  sittingSprite: {fileID: 21300000, guid: 0238029cd39488f42a0d06ba97da27ec, type: 3}
+  sittingHeight: 2.1
+  sittingFootOffsetY: -1.05
+  sittingSortingOrder: 5
+  walkingSprite: {fileID: 21300000, guid: b21f900340c345d5a3b8087b426e541d, type: 3}
+  walkingHeight: 2.3
+  walkingFootOffsetY: -1.15
+  walkingSortingOrder: 5
+  talkingSprite: {fileID: 21300000, guid: ee710f3406b84c9da2c89c4c9e4e6154, type: 3}
+  talkingHeight: 2.3
+  talkingFootOffsetY: -1.15
+  talkingSortingOrder: 5
   warmthLow: {r: 0.6, g: 0.6, b: 0.7, a: 1}
   warmthHigh: {r: 1, g: 0.85, b: 0.5, a: 1}
-  tintBodyByWarmth: 1
+  tintBodyByWarmth: 0
   data:
     id: 0
     warmth: 0
     awareness: 0
     hasAwareness: 0
-    itemPool: []
     actionMin: 0
     actionMax: 0
     state: 0
+    visualPose: 0
     isHome: 0
     isOut: 0
     homeArea: 0
@@ -158,6 +170,7 @@ MonoBehaviour:
     groundY: 0
     hasGroundY: 0
     actionsTakenThisRound: 0
+    hasEverLeftHome: 0
     wasForceTouched: 0
     canAct: 0
 --- !u!61 &1576122359022235245

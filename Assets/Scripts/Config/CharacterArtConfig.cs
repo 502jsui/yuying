@@ -44,6 +44,15 @@ public class ResidentArtEntry
 {
     public ResidentId id;
     public CharacterArtEntry art = new CharacterArtEntry();
+
+    [Tooltip("坐姿立绘。当前只给老婆婆和大叔配置；留空时回到站立立绘。")]
+    public CharacterArtEntry sittingArt = new CharacterArtEntry();
+
+    [Tooltip("走路立绘。住户走位期间使用。")]
+    public CharacterArtEntry walkingArt = new CharacterArtEntry();
+
+    [Tooltip("交流立绘。住户执行 Talk 行动时使用。")]
+    public CharacterArtEntry talkingArt = new CharacterArtEntry();
 }
 
 /// <summary>
@@ -123,12 +132,92 @@ public class CharacterArtConfig : ScriptableObject
             bool found = false;
             for (int j = 0; j < residents.Count; j++)
             {
-                if (residents[j] != null && residents[j].id == ids[i]) { found = true; break; }
+                if (residents[j] != null && residents[j].id == ids[i])
+                {
+                    if (residents[j].sittingArt == null)
+                        residents[j].sittingArt = DefaultSittingEntry(ids[i]);
+                    if (residents[j].walkingArt == null)
+                        residents[j].walkingArt = DefaultActionEntry(ids[i]);
+                    if (residents[j].talkingArt == null)
+                        residents[j].talkingArt = DefaultActionEntry(ids[i]);
+                    found = true;
+                    break;
+                }
             }
             if (found) continue;
 
-            residents.Add(new ResidentArtEntry { id = ids[i], art = DefaultResidentEntry(ids[i]) });
+            residents.Add(new ResidentArtEntry
+            {
+                id = ids[i],
+                art = DefaultResidentEntry(ids[i]),
+                sittingArt = DefaultSittingEntry(ids[i]),
+                walkingArt = DefaultActionEntry(ids[i]),
+                talkingArt = DefaultActionEntry(ids[i])
+            });
         }
+    }
+
+    /// <summary>取住户坐姿设置；没有对应条目就补一条运行期默认值。</summary>
+    public CharacterArtEntry ForResidentSitting(ResidentId id)
+    {
+        EnsureDefaults();
+        for (int i = 0; i < residents.Count; i++)
+        {
+            ResidentArtEntry entry = residents[i];
+            if (entry != null && entry.id == id)
+            {
+                if (entry.sittingArt == null) entry.sittingArt = DefaultSittingEntry(id);
+                return entry.sittingArt;
+            }
+        }
+
+        CharacterArtEntry created = DefaultSittingEntry(id);
+        residents.Add(new ResidentArtEntry
+        {
+            id = id,
+            art = DefaultResidentEntry(id),
+            sittingArt = created
+        });
+        return created;
+    }
+
+    public CharacterArtEntry ForResidentWalking(ResidentId id)
+    {
+        return ForResidentActionArt(id, true);
+    }
+
+    public CharacterArtEntry ForResidentTalking(ResidentId id)
+    {
+        return ForResidentActionArt(id, false);
+    }
+
+    private CharacterArtEntry ForResidentActionArt(ResidentId id, bool walking)
+    {
+        EnsureDefaults();
+        for (int i = 0; i < residents.Count; i++)
+        {
+            ResidentArtEntry entry = residents[i];
+            if (entry == null || entry.id != id) continue;
+            if (walking)
+            {
+                if (entry.walkingArt == null) entry.walkingArt = DefaultActionEntry(id);
+                return entry.walkingArt;
+            }
+
+            if (entry.talkingArt == null) entry.talkingArt = DefaultActionEntry(id);
+            return entry.talkingArt;
+        }
+
+        CharacterArtEntry art = DefaultActionEntry(id);
+        residents.Add(new ResidentArtEntry
+        {
+            id = id,
+            art = DefaultResidentEntry(id),
+            sittingArt = DefaultSittingEntry(id),
+            walkingArt = walking ? art : DefaultActionEntry(id),
+            talkingArt = walking ? DefaultActionEntry(id) : art
+        });
+        return art;
     }
 
     /// <summary>
@@ -144,6 +233,46 @@ public class CharacterArtConfig : ScriptableObject
             sortingOrder = 5,
             flipWithMovement = false,
             tintByWarmth = true
+        };
+    }
+
+    /// <summary>
+    /// 坐姿默认值。没有坐姿贴图时 HasArt=false，ResidentView 会保持站立外观。
+    /// </summary>
+    public static CharacterArtEntry DefaultSittingEntry(ResidentId id)
+    {
+        float height;
+        switch (id)
+        {
+            case ResidentId.Grandma: height = 1.8f; break;
+            case ResidentId.Uncle: height = 2.1f; break;
+            case ResidentId.Girl: height = 1.2f; break;
+            case ResidentId.Mother: height = 1.8f; break;
+            default: height = 1.5f; break;
+        }
+
+        return new CharacterArtEntry
+        {
+            sprite = null,
+            height = height,
+            footOffsetY = -height * 0.5f,
+            sortingOrder = 5,
+            flipWithMovement = false,
+            tintByWarmth = false
+        };
+    }
+
+    public static CharacterArtEntry DefaultActionEntry(ResidentId id)
+    {
+        float height = DefaultPlaceholderHeight(id);
+        return new CharacterArtEntry
+        {
+            sprite = null,
+            height = height,
+            footOffsetY = -height * 0.5f,
+            sortingOrder = 5,
+            flipWithMovement = false,
+            tintByWarmth = false
         };
     }
 

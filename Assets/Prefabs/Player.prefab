@@ -170,9 +170,6 @@ MonoBehaviour:
   moveSpeed: 4
   interactKey: 101
   interactRadius: 0.8
-  itemLayer:
-    serializedVersion: 2
-    m_Bits: 0
   footstepInterval: 1.6
   footstepVolume: 0.6
   doorRange: 1.6

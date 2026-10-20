@@ -45,12 +45,15 @@ public class NpcSystemTests
 
     private void RegisterPlacements()
     {
-        Register("first_rack", AreaId.FirstFloor, PlacementSurface.HangingRack);
+        Register("backyard_rack_a", AreaId.Backyard, PlacementSurface.HangingRack);
         Register("first_ground_a", AreaId.FirstFloor, PlacementSurface.Ground);
         Register("first_ground_b", AreaId.FirstFloor, PlacementSurface.Ground);
         Register("first_on_item", AreaId.FirstFloor, PlacementSurface.OnItem);
         Register("backyard_ground_a", AreaId.Backyard, PlacementSurface.Ground);
         Register("backyard_on_item", AreaId.Backyard, PlacementSurface.OnItem);
+        Register("second_rack", AreaId.SecondFloor, PlacementSurface.HangingRack);
+        Register("second_ground", AreaId.SecondFloor, PlacementSurface.Ground);
+        Register("second_on_item", AreaId.SecondFloor, PlacementSurface.OnItem);
     }
 
     private void Register(string placementId, AreaId area, PlacementSurface surface)
@@ -324,8 +327,7 @@ public class NpcSystemTests
     [Test]
     public void ForceTakeOut_WhenOnlyOneUntouchedItemLeft()
     {
-        // 场上只剩 grandma_01 没被碰过。
-        items.GetItem("aunt_01").hasTemperature = true;
+        // 一楼场上只剩 aunt_01 没被碰过。
         Assert.AreEqual(1, npc.CountUntouchedItems(AreaId.FirstFloor));
 
         npc.ForceTakeOutNext = true;
@@ -334,6 +336,22 @@ public class NpcSystemTests
 
         Assert.AreEqual(NpcActionType.TakeOutItem, record.action, "场上快没东西可碰时必须有一个住户拿出物品。");
         Assert.IsFalse(npc.ForceTakeOutNext, "强制标记只触发一次。");
+    }
+
+    [Test]
+    public void ForceTakeOut_WaitsForResidentWhoCanTakeOut()
+    {
+        npc.ForceTakeOutNext = true;
+        ResidentData girl = session.GetResident(ResidentId.Girl);
+
+        NpcActionRecord girlAction = npc.DecideNextAction(girl, 1);
+        Assert.AreNotEqual(NpcActionType.TakeOutItem, girlAction.action);
+        Assert.IsTrue(npc.ForceTakeOutNext, "小女孩不能拿出物品，不应消耗强制标记");
+
+        ResidentData grandma = session.GetResident(ResidentId.Grandma);
+        NpcActionRecord grandmaAction = npc.DecideNextAction(grandma, 1);
+        Assert.AreEqual(NpcActionType.TakeOutItem, grandmaAction.action);
+        Assert.IsFalse(npc.ForceTakeOutNext);
     }
 
     // ---------------- 状态机 ----------------
@@ -354,15 +372,35 @@ public class NpcSystemTests
     }
 
     [Test]
-    public void RoundStart_NoAbsent_EveryoneNormalAndNoBlockedArea()
+    public void RoundStart_NoAbsent_AdultsSit_AndNoBlockedArea()
     {
         npc.BeginRound(true, ResidentId.Grandma);
         AreaId blocked = session.GetResident(ResidentId.Grandma).stayOutArea;
 
         npc.BeginRound(false, ResidentId.Girl);
 
-        Assert.AreEqual(NpcState.Normal, session.GetResident(ResidentId.Grandma).state);
+        Assert.AreEqual(NpcState.Sitting, session.GetResident(ResidentId.Grandma).state);
+        Assert.AreEqual(NpcState.Sitting, session.GetResident(ResidentId.Uncle).state);
+        Assert.AreEqual(NpcState.Normal, session.GetResident(ResidentId.Girl).state);
         Assert.IsFalse(items.IsAreaBlocked(blocked));
+    }
+
+    [Test]
+    public void SettleIdleStates_ReturnsSittersAfterWalkingHome()
+    {
+        npc.BeginRound(false, ResidentId.Girl);
+        session.SetNpcState(ResidentId.Grandma, NpcState.Normal);
+        session.SetNpcState(ResidentId.Uncle, NpcState.Normal);
+
+        npc.SettleIdleStates(new NpcRoundEndResult
+        {
+            hasAbsentResident = false,
+            absentResident = ResidentId.Girl
+        });
+
+        Assert.AreEqual(NpcState.Sitting, session.GetResident(ResidentId.Grandma).state);
+        Assert.AreEqual(NpcState.Sitting, session.GetResident(ResidentId.Uncle).state);
+        Assert.AreEqual(NpcState.Normal, session.GetResident(ResidentId.Girl).state);
     }
 
     [Test]
@@ -500,7 +538,7 @@ public class NpcSystemTests
     {
         Assert.AreEqual(AreaId.FirstFloor, session.GetResident(ResidentId.Grandma).currentArea);
         Assert.AreEqual(AreaId.FirstFloor, session.GetResident(ResidentId.Uncle).currentArea);
-        Assert.AreEqual(AreaId.FirstFloor, session.GetResident(ResidentId.Girl).currentArea);
+        Assert.AreEqual(AreaId.SecondFloor, session.GetResident(ResidentId.Girl).currentArea);
     }
 
     [Test]
@@ -587,41 +625,61 @@ public class NpcSystemTests
     }
 
     [Test]
-    public void Girl_PlacementStaysInHerArea()
+    public void Girl_Placement_CanUseAnySceneArea()
     {
-        // 小女孩只在本区域内移动物品（不跨区域）。
+        // 小女孩在整个已拼接场景里移动物品，不限制在当前楼层。
         ItemData item = items.GetItem("aunt_01");
         ResidentData girl = session.GetResident(ResidentId.Girl);
+        PlacementRegistry.Unregister("second_rack");
+        PlacementRegistry.Unregister("second_ground");
+        PlacementRegistry.Unregister("second_on_item");
 
         for (int i = 0; i < 100; i++)
         {
             PlacementOption option;
             Assert.IsTrue(npc.TryPickPlacement(item, girl, out option));
-            Assert.AreEqual(AreaId.FirstFloor, option.area, "小女孩只在本区域换位置。");
+            Assert.AreNotEqual(AreaId.SecondFloor, option.area, "二楼没有空点时，小女孩应能去整个场景的其它区域。");
         }
     }
 
     [Test]
-    public void Girl_MoveUnavailable_WhenNoItemsInHerArea()
+    public void Girl_MoveUnavailable_WhenNoItemsAnywhere()
     {
         ResidentData girl = session.GetResident(ResidentId.Girl);
 
-        items.Return("grandma_01", ResidentId.Grandma);
+        for (int i = 0; i < session.items.Count; i++)
+        {
+            ItemData item = session.items[i];
+            item.position = ItemPosition.OwnerHand;
+            item.area = AreaId.None;
+            item.placementId = null;
+            item.isInPool = true;
+        }
 
+        Assert.IsFalse(npc.IsActionAvailable(NpcActionType.MoveItem, girl), "整个场景没有物品，就不能移动。");
+    }
+
+    [Test]
+    public void Girl_MoveTarget_CanComeFromAnotherArea()
+    {
+        ResidentData girl = session.GetResident(ResidentId.Girl);
         ItemData auntItem = items.GetItem("aunt_01");
         auntItem.area = AreaId.Backyard;
         auntItem.placementId = "backyard_ground_a";
 
-        Assert.IsFalse(npc.IsActionAvailable(NpcActionType.MoveItem, girl), "本区域没有物品，就不能移动。");
+        Assert.AreEqual(AreaId.SecondFloor, girl.currentArea);
+        Assert.IsTrue(npc.IsActionAvailable(NpcActionType.MoveItem, girl),
+            "小女孩应能看到整个场景里的物品");
     }
 
     [Test]
-    public void Resident_IsOutside_OnlyWhenOut()
+    public void Resident_IsOutside_OnlyWhenLeafHome()
     {
         ResidentData grandma = session.GetResident(ResidentId.Grandma);
 
         npc.BeginRound(false, ResidentId.Girl);
-        Assert.IsFalse(grandma.IsOutside, "在家 = 在门里面（不可见）。");
+        Assert.AreEqual(NpcState.Sitting, grandma.state);
+        Assert.IsFalse(grandma.IsOutside, "已经回家的坐姿必须留在门内。");
 
         npc.BeginRound(true, ResidentId.Grandma);
         Assert.IsTrue(grandma.IsOutside, "区域持续 = 在外面（可见）。");

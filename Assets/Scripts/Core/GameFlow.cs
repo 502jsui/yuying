@@ -30,6 +30,7 @@ public class GameFlow : MonoBehaviour
     private bool playerInputDone;
     private bool npcActionDone;
     private bool npcActionWaiting;
+    private float npcActionLastProgressAt;
     private float previousTimeScale = 1f;
 
     public GameState State { get; private set; } = GameState.Boot;
@@ -174,8 +175,9 @@ public class GameFlow : MonoBehaviour
         SetPhase(TurnPhase.NpcAction);
         npcActionDone = false;
         npcActionWaiting = true;
+        npcActionLastProgressAt = Time.unscaledTime;
         EventBus.Publish(new NpcActionPhaseEvent { round = session.round });
-        yield return WaitForFlag(delegate { return npcActionDone; }, config.npcPhaseTimeout, "NpcAction");
+        yield return WaitForNpcAction(config.npcPhaseTimeout);
         if (npcActionWaiting && npcActionDone == false)
         {
             Debug.LogWarning("NPC 行动阶段超时，已强制进入下一阶段。");
@@ -208,6 +210,16 @@ public class GameFlow : MonoBehaviour
         while (done != null && !done())
         {
             if (timeout > 0f && Time.unscaledTime - start >= timeout) break;
+            yield return null;
+        }
+    }
+
+    /// <summary>NPC 行动有进展就续期，超时只用于兜底真正卡死的协程。</summary>
+    private IEnumerator WaitForNpcAction(float timeout)
+    {
+        while (!npcActionDone)
+        {
+            if (timeout > 0f && Time.unscaledTime - npcActionLastProgressAt >= timeout) break;
             yield return null;
         }
     }
@@ -249,6 +261,12 @@ public class GameFlow : MonoBehaviour
         npcActionDone = true;
     }
 
+    /// <summary>NPC 行动每完成一小段就汇报一次，避免长动作链被总时限误杀。</summary>
+    public void NotifyNpcActionProgress()
+    {
+        if (npcActionWaiting) npcActionLastProgressAt = Time.unscaledTime;
+    }
+
     /// <summary>调试/兜底：强制结束当前等待。</summary>
     public void ForceAdvancePhase()
     {
@@ -279,22 +297,26 @@ public class GameFlow : MonoBehaviour
             session.isGameOver = true;
         }
         SetPhase(TurnPhase.GameOver);
-        SetState(GameState.Ending);
-        EventBus.Publish(new GameOverEvent { session = session });
 
-        // 本次 Demo 不做结局界面，但先把判定结果算出来打日志，方便提前验证数值。
+        // 结算顺序：先判母亲开门，再判结局（文档 5.5）。
         if (session != null && config != null)
         {
-            // 结算顺序：先判母亲开门，再结算结局（文档 5.5）。
             if (Stats != null && Stats.ResolveMotherDoorAtEnd())
             {
                 int collected = Items != null ? Items.CollectMotherItems() : 0;
                 Debug.Log("[母亲开门] 知晓 > 60：暖意跳到 61，一次性收走自己的东西 " + collected + " 件。");
             }
-
-            EndingResult ending = EndingRules.Resolve(session, config);
-            Debug.Log("[结局判定] " + ending.title + "（" + ending.reason + "）");
         }
+
+        EndingResult ending = EndingRules.Resolve(session, config);
+        Debug.Log("[结局判定] " + ending.title + "（" + ending.reason + "）");
+
+        SetState(GameState.Ending);
+        EventBus.Publish(new GameOverEvent
+        {
+            session = session,
+            ending = ending
+        });
     }
 
     public void SetState(GameState next)

@@ -17,7 +17,7 @@ using UnityEngine;
 /// 参数（都可省略）：
 ///   -simRuns 500              跑多少局
 ///   -simSeed 1                起始种子
-///   -simPolicy insist         stay / insist / roam / roamInsist
+///   -simPolicy full           full / stay / insist / roam / roamInsist
 ///   -simOut &lt;path&gt;            把报告写成 markdown
 ///   -simCsv &lt;path&gt;            把分布写成 csv
 ///   -simTraceGames 1          打印前几局的逐轮明细
@@ -67,7 +67,7 @@ public static class YuyinSimulatorTool
         options.seedBase = GetInt(args, "-simSeed", options.seedBase);
         options.traceGames = GetInt(args, "-simTraceGames", options.traceGames);
         options.traceIndex = GetInt(args, "-simTrace", options.traceIndex);
-        options.policy = ParsePolicy(GetString(args, "-simPolicy", "insist"));
+        options.policy = ParsePolicy(GetString(args, "-simPolicy", "full"));
         ReadTuning(args, options.tuning);
 
         acceptance.maxShare = GetFloat(args, "-simMaxShare", acceptance.maxShare);
@@ -233,11 +233,12 @@ public static class YuyinSimulatorTool
         if (string.IsNullOrEmpty(value)) return SimPlayerPolicy.StayAndInsist;
         switch (value.Trim().ToLowerInvariant())
         {
+            case "full": case "fullgame": return SimPlayerPolicy.FullGameAndInsist;
             case "stay": return SimPlayerPolicy.StayAndWait;
             case "insist": case "stayinsist": return SimPlayerPolicy.StayAndInsist;
             case "roam": return SimPlayerPolicy.RoamAndWait;
             case "roaminsist": return SimPlayerPolicy.RoamAndInsist;
-            default: return SimPlayerPolicy.StayAndInsist;
+            default: return SimPlayerPolicy.FullGameAndInsist;
         }
     }
 

@@ -41,6 +41,15 @@ public class PauseScreenshotTests
         yield return null;
         yield return null;
 
+        IntroNarration intro = UnityEngine.Object.FindObjectOfType<IntroNarration>();
+        if (intro != null) intro.RequestSkip();
+        float narrationStart = Time.realtimeSinceStartup;
+        while (NarrationState.IsBlockingInput && Time.realtimeSinceStartup - narrationStart < 5f)
+        {
+            yield return null;
+        }
+        Assert.IsFalse(NarrationState.IsBlockingInput, "开场独白应该能跳过");
+
         float start = Time.realtimeSinceStartup;
         while (GameRoot.Instance.Flow.Phase != TurnPhase.PlayerInput && Time.realtimeSinceStartup - start < 10f)
         {

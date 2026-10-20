@@ -107,4 +107,44 @@ public class GameTextTests
         Assert.AreEqual(PlayerController.StuckHint.D1, PlayerController.ResolveStuckHint(false, true));
         Assert.AreEqual(PlayerController.StuckHint.D3, PlayerController.ResolveStuckHint(false, false));
     }
+
+    [Test]
+    public void EndingScripts_ContainAllThreePDFStories()
+    {
+        EndingScript be = text.EndingScriptFor(EndingId.RainInTheCorridor);
+        EndingScript oe = text.EndingScriptFor(EndingId.WhenSheWasLittle);
+        EndingScript he = text.EndingScriptFor(EndingId.BeforeSnowStops);
+
+        Assert.IsNotNull(be);
+        Assert.IsNotNull(oe);
+        Assert.IsNotNull(he);
+        Assert.AreEqual("楼道里的雨", be.title);
+        Assert.AreEqual("她小时候", oe.title);
+        Assert.AreEqual("雪停之前", he.title);
+        Assert.Greater(be.lines.Count, 10);
+        Assert.Greater(oe.lines.Count, 20);
+        Assert.Greater(he.lines.Count, 10);
+    }
+
+    [Test]
+    public void EndingScripts_KeepSpeakerPausesAndStageCues()
+    {
+        EndingScript be = text.EndingScriptFor(EndingId.RainInTheCorridor);
+        EndingScript oe = text.EndingScriptFor(EndingId.WhenSheWasLittle);
+        EndingScript he = text.EndingScriptFor(EndingId.BeforeSnowStops);
+
+        StringAssert.Contains("妈妈的声", string.Join("|", be.lines.ConvertAll(line => line.speaker).ToArray()));
+        Assert.IsTrue(oe.lines.Exists(line => line.cue == EndingCue.TimeCard && line.cueText == "葬礼"));
+        Assert.IsTrue(be.lines.Exists(line => line.cue == EndingCue.FocusMotherDoor));
+        Assert.IsTrue(he.lines.Exists(line => line.cue == EndingCue.SnowStart));
+        Assert.IsTrue(be.lines.Exists(line => line.pauseAfterSeconds >= 3f));
+    }
+
+    [Test]
+    public void EnsureEndingDefaults_DoesNotDuplicateScripts()
+    {
+        text.EnsureEndingDefaults();
+        text.EnsureEndingDefaults();
+        Assert.AreEqual(3, text.endingScripts.Count);
+    }
 }

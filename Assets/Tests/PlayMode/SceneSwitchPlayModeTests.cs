@@ -155,9 +155,9 @@ public class SceneSwitchTests
         yield return WaitUntil(
             delegate { return SceneStitcher.IsActive; },
             15f,
-            "NPC 行动阶段把两个场景拼起来");
+            "NPC 行动阶段把整栋楼拼起来");
 
-        // 相机应该拉远到能同时看见两个场景（单场景是 5.4，两个是 ~10.8）。
+        // 相机应该拉远到能同时看见整栋楼（一楼 + 二楼 + 后院）。
         Camera camera = Camera.main;
         Assert.IsNotNull(camera, "应该有主相机。");
         SceneCameraFollow2D framing = camera.GetComponent<SceneCameraFollow2D>();
@@ -165,11 +165,20 @@ public class SceneSwitchTests
             delegate { return framing != null && !framing.IsAnimating; },
             5f,
             "镜头拉远动画结束");
-        Assert.Greater(camera.orthographicSize, 8f, "NPC 行动时相机要拉远看全两个场景。");
+        Assert.Greater(camera.orthographicSize, 8f, "NPC 行动时相机要拉远看全整栋楼。");
 
         // 拼接进来的后院场景里的 NPC View 必须绑到本局数据，否则看不到对面的行动。
         Scene backyard = SceneManager.GetSceneByName("Backyard");
         Assert.IsTrue(backyard.IsValid() && backyard.isLoaded, "后院应该被拼接进来。");
+
+        Scene secondFloor = SceneManager.GetSceneByName("SecondFloor");
+        Assert.IsTrue(secondFloor.IsValid() && secondFloor.isLoaded, "二楼应该被拼接进来。");
+        Assert.AreEqual(SceneLayoutMetrics.StairsX,
+            SceneStitcher.WorldX(AreaId.SecondFloor, SceneLayoutMetrics.StairsX), 0.01f,
+            "二楼楼梯应该对齐一楼右侧楼梯。");
+        Assert.AreEqual(4.8f, SceneStitcher.OffsetYFor(AreaId.SecondFloor), 0.01f,
+            "二楼应该叠在一楼正上方。");
+        AssertSinglePanoramaBackdrop();
 
         ResidentView copyView = null;
         GameObject[] roots = backyard.GetRootGameObjects();
@@ -215,7 +224,7 @@ public class SceneSwitchTests
     }
 
     [UnityTest]
-    public IEnumerator NpcPhase_RainCoversWholeStitchedScene_WithRoofOverFirstFloor()
+    public IEnumerator NpcPhase_RainCoversWholeStitchedScene_AndStopsAtSecondFloorRoof()
     {
         yield return null;
 
@@ -244,15 +253,28 @@ public class SceneSwitchTests
 
         RainController rain = Object.FindObjectOfType<RainController>();
         Assert.IsNotNull(rain, "拼接时应该有雨。");
-        Assert.Greater(rain.width, 30f, "雨要铺满拼接后的整个场景（两个场景宽约 38.4）。");
+        Assert.Greater(rain.width, 30f, "雨要铺满整栋楼与后院的宽度（约 38.4）。");
+        Assert.Greater(rain.height, 20f, "雨场要覆盖到二楼屋顶，而不是只铺一楼高度。");
         Assert.IsNotNull(rain.BackgroundRain, "背景雨要保留。");
-        Assert.IsTrue(rain.BackgroundRain.useExclusion, "一楼那半边要有屋盖排除（雨落在盖子上）。");
+        Assert.IsTrue(rain.BackgroundRain.useExclusion, "二楼屋顶以下要排除雨丝。");
 
-        // 一楼屋顶下不能有雨丝；地面溅水也不能落到屋顶下。
+        // 二楼屋顶下不能有雨丝；地面溅水也不能落到室内。
         float houseCenter = SceneStitcher.OffsetFor(AreaId.FirstFloor);
         float houseMin = houseCenter - SceneStitcher.HalfWidth;
         float houseMax = houseCenter + SceneStitcher.HalfWidth;
-        const float roofTopY = 4.35f;
+        float roofTopY = SceneStitcher.OffsetYFor(AreaId.SecondFloor) + 1.4f;
+        Assert.AreEqual(roofTopY, rain.BackgroundRain.exclusionTopY, 0.01f,
+            "雨丝应该在二楼屋顶线消失。");
+
+        GameObject roof = FindSceneObject("SecondFloor", "Roof");
+        Assert.IsNotNull(roof, "二楼应该有自己的屋顶罩。");
+        SpriteRenderer roofRenderer = roof.GetComponent<SpriteRenderer>();
+        Assert.IsNotNull(roofRenderer, "二楼屋顶应该可见。");
+        Assert.Greater(roofRenderer.sortingOrder, rain.ForegroundRain.sortingOrder,
+            "屋顶必须画在前景雨的上层。");
+        Assert.AreEqual(SceneStitcher.OffsetYFor(AreaId.SecondFloor) + 1.65f,
+            roof.transform.position.y, 0.05f,
+            "二楼屋顶应该跟着拼接副本移动到二楼顶部。");
 
         RainStreakField2D[] fields = Object.FindObjectsOfType<RainStreakField2D>();
         int visibleStreaks = 0;
@@ -267,7 +289,7 @@ public class SceneSwitchTests
 
                 Vector3 p = sr.transform.position;
                 bool insideHouse = p.x > houseMin && p.x < houseMax;
-                Assert.IsFalse(insideHouse && p.y < roofTopY, "一楼屋顶下面不能有雨丝。");
+                Assert.IsFalse(insideHouse && p.y < roofTopY, "二楼屋顶下面不能有雨丝。");
             }
         }
         Assert.Greater(visibleStreaks, 0, "应该检查到可见雨丝。");
@@ -278,7 +300,7 @@ public class SceneSwitchTests
             float splashCenterX = rain.SplashRain.transform.position.x + shape.position.x;
             float splashHalfWidth = shape.scale.x * 0.5f;
             bool overlapsHouse = splashCenterX + splashHalfWidth > houseMin && splashCenterX - splashHalfWidth < houseMax;
-            Assert.IsFalse(overlapsHouse, "地面溅水不能落到一楼屋顶下。");
+            Assert.IsFalse(overlapsHouse, "地面溅水不能落到室内。");
         }
 
         yield return WaitUntil(
@@ -290,6 +312,34 @@ public class SceneSwitchTests
         // 一楼室内本来就没有雨（RainController 在 FirstFloor 会自禁用）；
         // 这里检查拼接用的那套雨在拆场景前已经恢复成单场景宽度。
         Assert.IsTrue(rain == null || rain.width < 30f, "结算后雨要恢复成单场景大小。");
+    }
+
+    private static GameObject FindSceneObject(string sceneName, string objectName)
+    {
+        Scene scene = SceneManager.GetSceneByName(sceneName);
+        if (!scene.IsValid() || !scene.isLoaded) return null;
+
+        GameObject[] roots = scene.GetRootGameObjects();
+        for (int i = 0; i < roots.Length; i++)
+        {
+            Transform[] children = roots[i].GetComponentsInChildren<Transform>(true);
+            for (int c = 0; c < children.Length; c++)
+            {
+                if (children[c] != null && children[c].name == objectName) return children[c].gameObject;
+            }
+        }
+        return null;
+    }
+
+    private static void AssertSinglePanoramaBackdrop()
+    {
+        PanoramaBackdropView[] views = Object.FindObjectsOfType<PanoramaBackdropView>(true);
+        int visible = 0;
+        for (int i = 0; i < views.Length; i++)
+        {
+            if (views[i] != null && views[i].spriteRenderer != null && views[i].spriteRenderer.enabled) visible++;
+        }
+        Assert.AreEqual(1, visible, "拼接宽镜头只能显示一份完整全景背景");
     }
 
     private static string Snapshot(GameSession session)

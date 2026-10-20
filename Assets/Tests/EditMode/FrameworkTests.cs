@@ -41,6 +41,7 @@ public class FrameworkTests
         Assert.AreEqual(20f, config.GetResidentConfig(ResidentId.Uncle).awareness);
         Assert.AreEqual(30f, config.GetResidentConfig(ResidentId.Girl).warmth);
         Assert.IsFalse(config.GetResidentConfig(ResidentId.Girl).hasAwareness);
+        Assert.AreEqual(AreaId.SecondFloor, config.GetResidentConfig(ResidentId.Girl).homeArea);
         Assert.AreEqual(30f, config.GetResidentConfig(ResidentId.Mother).warmth);
         Assert.AreEqual(30f, config.GetResidentConfig(ResidentId.Mother).awareness);
     }
@@ -356,7 +357,7 @@ public class FrameworkTests
             framing.ComputeOrthographicSizeFor(-9.6f, 9.6f, -5.4f, 5.4f),
             0.0001f);
 
-        // 拼接两个场景（38.4 宽）应该比单场景更远。
+        // 整栋楼三区域并集（38.4 宽）应该比单场景更远。
         Assert.Greater(
             framing.ComputeOrthographicSizeFor(-19.2f, 19.2f, -5.4f, 5.4f),
             framing.ComputeOrthographicSize());
@@ -367,10 +368,27 @@ public class FrameworkTests
     [Test]
     public void PortalHint_MatchesTargetScene()
     {
-        Assert.AreEqual("按 F 出门", ScenePortal2D.ResolveHintText("Backyard", null, KeyCode.F));
-        Assert.AreEqual("按 F 回屋", ScenePortal2D.ResolveHintText("FirstFloor", null, KeyCode.F));
+        Assert.AreEqual("按 F 去后院", ScenePortal2D.ResolveHintText("Backyard", null, KeyCode.F));
+        Assert.AreEqual("按 F 回一楼", ScenePortal2D.ResolveHintText("FirstFloor", null, KeyCode.F));
+        Assert.AreEqual("按 G 上楼", ScenePortal2D.ResolveHintText("SecondFloor", null, KeyCode.G));
         Assert.AreEqual("按 F 切换场景", ScenePortal2D.ResolveHintText("Credits", null, KeyCode.F));
         Assert.AreEqual("走这边", ScenePortal2D.ResolveHintText("Backyard", "走这边", KeyCode.F));
+    }
+
+    [Test]
+    public void PortalHint_CombinesAlternateExit()
+    {
+        GameObject go = new GameObject("PortalHintTest");
+        ScenePortal2D portal = go.AddComponent<ScenePortal2D>();
+        portal.sceneName = "Backyard";
+        portal.interactKey = KeyCode.F;
+        portal.hintText = "按 F 去后院";
+        portal.alternateSceneName = "SecondFloor";
+        portal.alternateInteractKey = KeyCode.G;
+        portal.alternateHintText = "按 G 上楼";
+
+        Assert.AreEqual("按 F 去后院　·　按 G 上楼", portal.ResolveCombinedHintText());
+        Object.DestroyImmediate(go);
     }
 
     [Test]

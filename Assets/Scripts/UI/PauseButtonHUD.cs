@@ -19,7 +19,7 @@ public class PauseButtonHUD : MonoBehaviour
     private const string PrefabPath = "UI/PauseButtonHUD";
 
     /// <summary>只有这些场景显示暂停时钟。</summary>
-    private static readonly string[] GameScenes = { "FirstFloor", "Backyard" };
+    private static readonly string[] GameScenes = { "FirstFloor", "SecondFloor", "Backyard" };
 
     private GameObject instance;
     private Button pauseButton;

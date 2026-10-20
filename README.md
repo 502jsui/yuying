@@ -28,7 +28,7 @@ Unity 单机叙事游戏。当前可玩的 Demo 在 `scenes-and-rain-demo` 分�
 | 场景 | 用途 |
 | --- | --- |
 | `MainMenu` | 启动场景（Build Settings 第 0 个） |
-| `FirstFloor` / `Backyard` | 游戏场景，可来回切换 |
+| `FirstFloor` / `SecondFloor` / `Backyard` | 游戏场景；一楼右侧可按 `F` 去后院、`G` 上二楼 |
 | `Pause` | 暂停界面（背景是暂停瞬间的截图） |
 | `Settings` / `Credits` | 设置 / 制作名单 |
 
@@ -36,7 +36,9 @@ Unity 单机叙事游戏。当前可玩的 Demo 在 `scenes-and-rain-demo` 分�
 | --- | --- |
 | 移动 | `A` / `D` 或左右方向键 |
 | 触碰物品 / 住户 | `E` |
-| 场景门口切换 | `F`（站在门范围内才生效） |
+| 去后院 | `F`（站在一楼右侧出口范围内才生效） |
+| 上 / 下二楼 | `G`（一楼与二楼的右侧楼梯都在 x≈8.6，上下对齐） |
+| 二楼母亲门 | 母亲在门内，门缝光随暖意 / 知晓变化；门外三件物品可触碰 |
 | 独白逐句推进 / 跳过当前句 | `Space` |
 | 暂停 | `Esc` |
 | 调试面板 | `F1` |
@@ -47,16 +49,25 @@ Unity 单机叙事游戏。当前可玩的 Demo 在 `scenes-and-rain-demo` 分�
 | --- | --- |
 | `Assets/Scripts/Core/GameRoot.cs` | 常驻服务根：配置、本局数据、系统初始化 |
 | `Assets/Scripts/Core/GameFlow.cs` | 顶层状态 + 每轮五阶段的时间轴 |
+| `Assets/Scripts/Core/EndingDirector.cs` | 三档结局判定后的自动结算演出、现有 HUD 临时隐藏与恢复 |
 | `Assets/Scripts/Core/GameSession.cs` | 一局数据（住户 / 物品 / 轮次 / 次数） |
 | `Assets/Scripts/Core/ItemSystem.cs` | 物品池、温度、玩家触碰、区域占用 |
 | `Assets/Scripts/Core/NpcSystem.cs` | 住户行动决策、拿取 / 交流 / 移动、回家判定 |
 | `Assets/Scripts/Core/StatSettlement.cs` | 暖意 / 知晓的唯一加减出口 |
+| `Assets/Scripts/Config/ScenePlacementLayout.cs` | 三个场景的全部放置点、坐标和放置面（唯一配置源） |
 | `Assets/Scripts/Views/` | 场景表现：相机、玩家、物品、住户、雨、提示条 |
 | `Assets/Scripts/UI/` | 主菜单、设置、暂停 HUD 等 UI 转发 |
 | `Assets/Scripts/Editor/` | 场景 / 美术 / 配置生成、自检、结局分布模拟 |
 
 更细的说明看 `Docs/`：`数据流.md`、`框架说明.md`、`物品系统说明.md`、
 `NPC系统说明.md`、`数值结算与玩家操作.md`、`暂停说明.md`、`UI界面说明.md`。
+
+## 常用维护入口
+
+- 调整放置点：先改 `Assets/Scripts/Config/ScenePlacementLayout.cs`，再运行
+  `Tools → 余音 → 在当前场景补齐物品与放置点`，场景会按同一个布局同步。
+- 检查场景接线：运行 `Tools → 余音 → 自检`。自检会核对放置点数量、坐标、区域和放置面。
+- 检查代码与数据：先跑 EditMode / PlayMode 测试，再运行一次自检。
 
 ## 开发工具
 

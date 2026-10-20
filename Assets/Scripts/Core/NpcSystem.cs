@@ -91,6 +91,7 @@ public class NpcSystem
             resident.actionsTakenThisRound = 0;
             resident.isOut = false;
             resident.isHome = true;
+            resident.visualPose = NpcVisualPose.Default;
 
             bool absent = hasAbsentResident && resident.canAct && resident.id == absentResident;
             if (absent)
@@ -110,7 +111,9 @@ public class NpcSystem
             else
             {
                 resident.stayOutArea = AreaId.None;
-                session.SetNpcState(resident.id, NpcStateRules.OnRoundStart(false));
+                session.SetNpcState(
+                    resident.id,
+                    NpcStateRules.CanSit(resident.id) ? NpcState.Sitting : NpcStateRules.OnRoundStart(false));
                 // 下一轮自行回家。
                 MoveResidentToArea(resident.id, resident.homeArea);
             }
@@ -177,6 +180,33 @@ public class NpcSystem
             hasAbsentResident = hasAbsent,
             absentResident = absent
         };
+    }
+
+    /// <summary>
+    /// 行动演出、走回家和关门都结束后调用：能坐的住户回坐姿，其余回正常。
+    /// 不回家的住户保持区域持续。
+    /// </summary>
+    public void SettleIdleStates(NpcRoundEndResult roundEnd)
+    {
+        for (int i = 0; i < session.residents.Count; i++)
+        {
+            ResidentData resident = session.residents[i];
+            if (resident == null || !resident.canAct) continue;
+            if (roundEnd.hasAbsentResident && resident.id == roundEnd.absentResident) continue;
+
+            resident.visualPose = NpcVisualPose.Default;
+            session.SetNpcState(
+                resident.id,
+                NpcStateRules.CanSit(resident.id) ? NpcState.Sitting : NpcState.Normal);
+        }
+    }
+
+    public void SetVisualPose(ResidentId id, NpcVisualPose pose)
+    {
+        ResidentData resident = session.GetResident(id);
+        if (resident == null || resident.visualPose == pose) return;
+        resident.visualPose = pose;
+        EventBus.Publish(new NpcPoseChangedEvent { id = id, pose = pose });
     }
 
     /// <summary>
@@ -285,13 +315,10 @@ public class NpcSystem
         if (resident == null || !resident.canAct) return NpcActionRecord.None(ResidentId.Mother);
 
         // 场上快没东西可碰了 → 这一轮第一个行动的住户直接拿出东西。
-        if (ForceTakeOutNext)
+        if (ForceTakeOutNext && IsActionAvailable(NpcActionType.TakeOutItem, resident))
         {
             ForceTakeOutNext = false;
-            if (IsActionAvailable(NpcActionType.TakeOutItem, resident))
-            {
-                return BuildRecord(resident, NpcActionType.TakeOutItem, order);
-            }
+            return BuildRecord(resident, NpcActionType.TakeOutItem, order);
         }
 
         // 疑惑：下次行动必去敲母亲的门（母亲不参与、或本人不交流时落回常规行动）
@@ -485,8 +512,9 @@ public class NpcSystem
         }
 
         NpcState before = actor.state;
-        bool transientOuting = before == NpcState.Normal || before == NpcState.GoingOut;
-        if (before == NpcState.Normal) session.SetNpcState(actor.id, NpcState.GoingOut);
+        bool transientOuting = before == NpcState.Normal || before == NpcState.Sitting || before == NpcState.GoingOut;
+        if (before == NpcState.Normal || before == NpcState.Sitting)
+            session.SetNpcState(actor.id, NpcState.GoingOut);
 
         AreaId actionArea = ResolveActionArea(record);
         bool executed = false;
@@ -519,6 +547,9 @@ public class NpcSystem
                 message = executed ? "移动东西。" : "移动东西失败。";
                 break;
         }
+        actor.visualPose = record.action == NpcActionType.Talk
+            ? NpcVisualPose.Talking
+            : NpcVisualPose.Default;
 
         // 状态收尾：出门行动回家；疑惑 / 惊吓被这次行动消耗掉；区域持续保持到下一轮。
         NpcState after;
@@ -595,7 +626,7 @@ public class NpcSystem
         return ResidentId.Grandma;
     }
 
-    /// <summary>本局母亲是否参与（本次 Demo 不做母亲时关掉）。</summary>
+    /// <summary>本局母亲是否参与；关闭时普通住户不会把交流目标指向她。</summary>
     public bool IsMotherInPlay
     {
         get { return config == null || config.motherEnabled; }
@@ -622,7 +653,7 @@ public class NpcSystem
         return random.Pick(candidates);
     }
 
-    /// <summary>小女孩只移动**本区域**里的物品（不跨区域）。</summary>
+    /// <summary>小女孩在整个已拼接场景里寻找可移动物品，不受当前楼层限制。</summary>
     private ItemData FindMoveTarget(ResidentData resident)
     {
         List<ItemData> candidates = new List<ItemData>();
@@ -630,7 +661,6 @@ public class NpcSystem
         {
             ItemData item = session.items[i];
             if (!item.IsInScene || item.isReturned) continue;
-            if (resident != null && item.area != resident.currentArea) continue;
             candidates.Add(item);
         }
         if (candidates.Count == 0) return null;
@@ -669,6 +699,8 @@ public class NpcSystem
         AreaId preferred = actor != null && actor.currentArea != AreaId.None
             ? actor.currentArea
             : AreaId.None;
+        bool restrictToPreferred = preferred == AreaId.SecondFloor
+            && (actor == null || actor.id != ResidentId.Girl);
         PlacementOption fallback = default(PlacementOption);
         bool hasFallback = false;
 
@@ -679,6 +711,9 @@ public class NpcSystem
             {
                 PlacementOption option = all[i];
                 if (!option.Accepts(item)) continue;
+                // 二楼只有小女孩会把东西在自己的楼层里换个位置；其他住户不跨楼层。
+                if (option.area == AreaId.SecondFloor && (actor == null || actor.id != ResidentId.Girl)) continue;
+                if (restrictToPreferred && option.area != preferred) continue;
 
                 bool inPreferred = preferred == AreaId.None || option.area == preferred;
                 bool free = !PlacementRegistry.IsOccupied(option.placementId);

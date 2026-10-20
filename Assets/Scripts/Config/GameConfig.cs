@@ -67,7 +67,7 @@ public class GameConfig : ScriptableObject
     [Min(1)] public int confusionMaxCount = 2;
 
     [Header("行动阶段")]
-    [Tooltip("NPC 行动阶段如果没有任何系统汇报完成，最多等这么久（秒）后强制进入下一阶段。")]
+    [Tooltip("NPC 行动阶段连续这么久没有任何进展时，才强制进入下一阶段。")]
     [Min(0.1f)] public float npcPhaseTimeout = 30f;
     [Tooltip("每个阶段之间留多久（秒），给表现层跟上节奏；设 0 表示不额外等待。")]
     [Min(0f)] public float phaseStepDelay = 0.2f;
@@ -139,8 +139,8 @@ public class GameConfig : ScriptableObject
         {
             new ResidentConfig(ResidentId.Grandma, 26f, 20f, true, 2, 3),
             new ResidentConfig(ResidentId.Uncle, 26f, 20f, true, 2, 3),
-            new ResidentConfig(ResidentId.Girl, 30f, 0f, false, 1, 2),
-            new ResidentConfig(ResidentId.Mother, motherInitialWarmth, motherInitialAwareness, true, 0, 0)
+            new ResidentConfig(ResidentId.Girl, 30f, 0f, false, 1, 2, AreaId.SecondFloor),
+            new ResidentConfig(ResidentId.Mother, motherInitialWarmth, motherInitialAwareness, true, 0, 0, AreaId.SecondFloor)
         };
     }
 
@@ -156,20 +156,20 @@ public class GameConfig : ScriptableObject
         {
             case ResidentId.Grandma: return new ResidentConfig(ResidentId.Grandma, 26f, 20f, true, 2, 3);
             case ResidentId.Uncle: return new ResidentConfig(ResidentId.Uncle, 26f, 20f, true, 2, 3);
-            case ResidentId.Girl: return new ResidentConfig(ResidentId.Girl, 30f, 0f, false, 1, 2);
+            case ResidentId.Girl: return new ResidentConfig(ResidentId.Girl, 30f, 0f, false, 1, 2, AreaId.SecondFloor);
             default: return new ResidentConfig(ResidentId.Mother, motherInitialWarmth, motherInitialAwareness, true, 0, 0);
         }
     }
 
     /// <summary>
     /// 文档 2.5 的物品安排：老婆婆 3 件、大叔 3 件，母亲 3 件本次不做但先留表。
-    /// 默认让老婆婆的衣服和大叔的花盆一开局就在一楼，其余先留在物品池。
+    /// 一楼没有晾衣架，老婆婆衣服从后院衣架开局；大叔的花盆从一楼开局。
     /// </summary>
     public void ApplyDefaultItems()
     {
         items = new List<ItemConfig>
         {
-            new ItemConfig("grandma_01", ItemOwner.Grandma, ItemType.Clothes, true, AreaId.FirstFloor, "first_rack"),
+            new ItemConfig("grandma_01", ItemOwner.Grandma, ItemType.Clothes, true, AreaId.Backyard, "backyard_rack_a"),
             new ItemConfig("grandma_02", ItemOwner.Grandma, ItemType.FlowerPot, false, AreaId.None, null),
             new ItemConfig("grandma_03", ItemOwner.Grandma, ItemType.MedicineBag, false, AreaId.None, null),
 
@@ -177,9 +177,9 @@ public class GameConfig : ScriptableObject
             new ItemConfig("aunt_02", ItemOwner.Uncle, ItemType.WoodCarving, false, AreaId.None, null),
             new ItemConfig("aunt_03", ItemOwner.Uncle, ItemType.ToolBag, false, AreaId.None, null),
 
-            new ItemConfig("mother_01", ItemOwner.Mother, ItemType.Clothes, false, AreaId.None, null),
-            new ItemConfig("mother_02", ItemOwner.Mother, ItemType.WoodenBox, false, AreaId.None, null),
-            new ItemConfig("mother_03", ItemOwner.Mother, ItemType.Diary, false, AreaId.None, null)
+            new ItemConfig("mother_01", ItemOwner.Mother, ItemType.Clothes, true, AreaId.SecondFloor, "second_rack"),
+            new ItemConfig("mother_02", ItemOwner.Mother, ItemType.WoodenBox, true, AreaId.SecondFloor, "second_ground"),
+            new ItemConfig("mother_03", ItemOwner.Mother, ItemType.Diary, true, AreaId.SecondFloor, "second_on_item")
         };
     }
 

@@ -22,33 +22,117 @@ MonoBehaviour:
   residents:
   - id: 1
     art:
-      sprite: {fileID: 0}
+      sprite: {fileID: 21300000, guid: 80e28f60762a4a7781bb2a012a5a70ac, type: 3}
       height: 2
       footOffsetY: -1
       sortingOrder: 5
       flipWithMovement: 0
-      tintByWarmth: 1
+      tintByWarmth: 0
+    sittingArt:
+      sprite: {fileID: 21300000, guid: e7b6961609ab371499f8303aee828470, type: 3}
+      height: 1.8
+      footOffsetY: -0.9
+      sortingOrder: 5
+      flipWithMovement: 0
+      tintByWarmth: 0
+    walkingArt:
+      sprite: {fileID: 21300000, guid: ac7a9deac4da4139a16fd197b418686c, type: 3}
+      height: 2
+      footOffsetY: -1
+      sortingOrder: 5
+      flipWithMovement: 0
+      tintByWarmth: 0
+    talkingArt:
+      sprite: {fileID: 21300000, guid: 80e28f60762a4a7781bb2a012a5a70ac, type: 3}
+      height: 2
+      footOffsetY: -1
+      sortingOrder: 5
+      flipWithMovement: 0
+      tintByWarmth: 0
   - id: 2
     art:
-      sprite: {fileID: 0}
+      sprite: {fileID: 21300000, guid: ee710f3406b84c9da2c89c4c9e4e6154, type: 3}
       height: 2.3
       footOffsetY: -1.15
       sortingOrder: 5
       flipWithMovement: 0
-      tintByWarmth: 1
+      tintByWarmth: 0
+    sittingArt:
+      sprite: {fileID: 21300000, guid: 0238029cd39488f42a0d06ba97da27ec, type: 3}
+      height: 2.1
+      footOffsetY: -1.05
+      sortingOrder: 5
+      flipWithMovement: 0
+      tintByWarmth: 0
+    walkingArt:
+      sprite: {fileID: 21300000, guid: b21f900340c345d5a3b8087b426e541d, type: 3}
+      height: 2.3
+      footOffsetY: -1.15
+      sortingOrder: 5
+      flipWithMovement: 0
+      tintByWarmth: 0
+    talkingArt:
+      sprite: {fileID: 21300000, guid: ee710f3406b84c9da2c89c4c9e4e6154, type: 3}
+      height: 2.3
+      footOffsetY: -1.15
+      sortingOrder: 5
+      flipWithMovement: 0
+      tintByWarmth: 0
   - id: 3
     art:
+      sprite: {fileID: 21300000, guid: 4fd89fbf295a44ee81a96ff38127222c, type: 3}
+      height: 1.4
+      footOffsetY: -0.7
+      sortingOrder: 5
+      flipWithMovement: 0
+      tintByWarmth: 0
+    sittingArt:
       sprite: {fileID: 0}
       height: 1.4
       footOffsetY: -0.7
       sortingOrder: 5
       flipWithMovement: 0
       tintByWarmth: 1
+    walkingArt:
+      sprite: {fileID: 21300000, guid: 1cf0808213eb48e68231dc958ed69099, type: 3}
+      height: 1.4
+      footOffsetY: -0.7
+      sortingOrder: 5
+      flipWithMovement: 0
+      tintByWarmth: 0
+    talkingArt:
+      sprite: {fileID: 21300000, guid: 4fd89fbf295a44ee81a96ff38127222c, type: 3}
+      height: 1.4
+      footOffsetY: -0.7
+      sortingOrder: 5
+      flipWithMovement: 0
+      tintByWarmth: 0
   - id: 0
     art:
-      sprite: {fileID: 0}
+      sprite: {fileID: 21300000, guid: 6036dc976a5049919f7836eda26b8aa2, type: 3}
       height: 2.1
       footOffsetY: -1.05
       sortingOrder: 5
       flipWithMovement: 0
+      tintByWarmth: 0
+    sittingArt:
+      sprite: {fileID: 0}
+      height: 1.4
+      footOffsetY: -0.7
+      sortingOrder: 5
+      flipWithMovement: 0
       tintByWarmth: 1
+    walkingArt:
+      sprite: {fileID: 21300000, guid: 6cbf05cf988245489b26a41dabcfed63, type: 3}
+      height: 2.1
+      footOffsetY: -1.05
+      sortingOrder: 5
+      flipWithMovement: 0
+      tintByWarmth: 0
+    talkingArt:
+      sprite: {fileID: 21300000, guid: 6036dc976a5049919f7836eda26b8aa2, type: 3}
+      height: 2.1
+      footOffsetY: -1.05
+      sortingOrder: 5
+      flipWithMovement: 0
+      tintByWarmth: 0

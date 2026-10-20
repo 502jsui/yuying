@@ -2,6 +2,7 @@
 /// NPC 状态机（对应文档 3.2）。纯规则函数，方便单测。
 ///
 ///   正常     在家，常规行动
+///   坐着     老婆婆缝衣服 / 大叔雕刻；此时仍在场景里，但不占区域
 ///   出门行动  本轮外出做事（一次行动期间）
 ///   区域持续  行动后没回家，停在某个区域 → 该区域本回合不可用
 ///   疑惑     下次行动必去敲母亲的门
@@ -19,6 +20,12 @@ public static class NpcStateRules
     public static NpcState OnRoundStart(bool absent)
     {
         return absent ? NpcState.StayOut : NpcState.Normal;
+    }
+
+    /// <summary>这个住户有没有专属坐姿，只用于老婆婆和大叔。</summary>
+    public static bool CanSit(ResidentId id)
+    {
+        return id == ResidentId.Grandma || id == ResidentId.Uncle;
     }
 
     /// <summary>一次外出行动结束、回家。</summary>

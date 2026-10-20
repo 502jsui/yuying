@@ -10,8 +10,17 @@ public class CharacterArtTests
 {
     private const string ConfigPath = "Assets/Resources/CharacterArt.asset";
     private const string PlayerPrefabPath = "Assets/Prefabs/Player.prefab";
+    private const string GrandmaPrefabPath = "Assets/Prefabs/Resident_Grandma.prefab";
+    private const string UnclePrefabPath = "Assets/Prefabs/Resident_Uncle.prefab";
     private const string GirlPrefabPath = "Assets/Prefabs/Resident_Girl.prefab";
+    private const string MotherPrefabPath = "Assets/Prefabs/Resident_Mother.prefab";
     private const string PlayerSpritePath = "Assets/Art/Characters/Player.png";
+    private const string GrandmaSittingPath = "Assets/Art/Characters/Grandma_Sitting.png";
+    private const string UncleSittingPath = "Assets/Art/Characters/Uncle_Sitting.png";
+    private const string GrandmaWalkingPath = "Assets/Art/Characters/Grandma_Walking.png";
+    private const string UncleWalkingPath = "Assets/Art/Characters/Uncle_Walking.png";
+    private const string GrandmaTalkingPath = "Assets/Art/Characters/Grandma_Talking.png";
+    private const string UncleTalkingPath = "Assets/Art/Characters/Uncle_Talking.png";
 
     [Test]
     public void Config_PlayerEntry_MatchesDesign()
@@ -48,6 +57,53 @@ public class CharacterArtTests
     }
 
     [Test]
+    public void SittingArt_IsBoundForGrandmaAndUncle()
+    {
+        CharacterArtConfig config = AssetDatabase.LoadAssetAtPath<CharacterArtConfig>(ConfigPath);
+        Assert.IsNotNull(config);
+
+        CharacterArtEntry grandma = config.ForResidentSitting(ResidentId.Grandma);
+        CharacterArtEntry uncle = config.ForResidentSitting(ResidentId.Uncle);
+
+        Assert.IsNotNull(grandma.sprite);
+        Assert.IsNotNull(uncle.sprite);
+        StringAssert.Contains("Grandma_Sitting", grandma.sprite.name);
+        StringAssert.Contains("Uncle_Sitting", uncle.sprite.name);
+        Assert.AreEqual(1.8f, grandma.height, 0.001f);
+        Assert.AreEqual(2.1f, uncle.height, 0.001f);
+        Assert.IsFalse(grandma.tintByWarmth, "坐姿成品图不叠暖意染色");
+        Assert.IsFalse(uncle.tintByWarmth, "坐姿成品图不叠暖意染色");
+    }
+
+    [Test]
+    public void SittingSprites_UseCharacterArtImportSettings()
+    {
+        AssertSittingImporter(GrandmaSittingPath);
+        AssertSittingImporter(UncleSittingPath);
+    }
+
+    [Test]
+    public void WalkingAndTalkingArt_IsBoundForGrandmaAndUncle()
+    {
+        CharacterArtConfig config = AssetDatabase.LoadAssetAtPath<CharacterArtConfig>(ConfigPath);
+        Assert.IsNotNull(config);
+
+        AssertPose(config, ResidentId.Grandma, NpcVisualPose.Walking, "Grandma_Walking", 2.0f);
+        AssertPose(config, ResidentId.Uncle, NpcVisualPose.Walking, "Uncle_Walking", 2.3f);
+        AssertPose(config, ResidentId.Grandma, NpcVisualPose.Talking, "Grandma_Talking", 2.0f);
+        AssertPose(config, ResidentId.Uncle, NpcVisualPose.Talking, "Uncle_Talking", 2.3f);
+    }
+
+    [Test]
+    public void WalkingAndTalkingSprites_UseCharacterArtImportSettings()
+    {
+        AssertSittingImporter(GrandmaWalkingPath);
+        AssertSittingImporter(UncleWalkingPath);
+        AssertSittingImporter(GrandmaTalkingPath);
+        AssertSittingImporter(UncleTalkingPath);
+    }
+
+    [Test]
     public void PlayerPrefab_Body_UsesArtAtDesignHeight()
     {
         SpriteRenderer body = FindBody(PlayerPrefabPath);
@@ -72,19 +128,12 @@ public class CharacterArtTests
     }
 
     [Test]
-    public void ResidentPrefabs_StayOnPlaceholderBars()
+    public void ResidentPrefabs_UseImageArt()
     {
-        // 住户还没给美术，占位方块的尺寸必须和 YuyinNpcSceneTool 的规格一致。
-        SpriteRenderer girl = FindBody(GirlPrefabPath);
-        Assert.IsNotNull(girl);
-
-        Vector2 size = CharacterArtApplier.ResolveWorldSize(girl);
-        Assert.AreEqual(0.6f, size.x, 0.01f);
-        Assert.AreEqual(1.4f, size.y, 0.01f);
-
-        ResidentView view = AssetDatabase.LoadAssetAtPath<GameObject>(GirlPrefabPath)
-            .GetComponent<ResidentView>();
-        Assert.IsTrue(view.tintBodyByWarmth, "占位方块继续用暖意染色做状态提示");
+        AssertResidentPrefab(GrandmaPrefabPath, "Grandma_Talking", 2.0f);
+        AssertResidentPrefab(UnclePrefabPath, "Uncle_Talking", 2.3f);
+        AssertResidentPrefab(GirlPrefabPath, "Girl_Standing", 1.4f);
+        AssertResidentPrefab(MotherPrefabPath, "Mother_Standing", 2.1f);
     }
 
     [Test]
@@ -110,5 +159,42 @@ public class CharacterArtTests
         Assert.AreEqual(1f, color.g, 0.001f);
         Assert.AreEqual(1f, color.b, 0.001f);
         Assert.AreEqual(1f, color.a, 0.001f);
+    }
+
+    private static void AssertSittingImporter(string path)
+    {
+        TextureImporter importer = AssetImporter.GetAtPath(path) as TextureImporter;
+        Assert.IsNotNull(importer, "找不到 " + path);
+        Assert.AreEqual(TextureImporterType.Sprite, importer.textureType);
+        Assert.AreEqual(SpriteImportMode.Single, importer.spriteImportMode);
+        Assert.AreEqual(100f, importer.spritePixelsPerUnit, 0.001f);
+        Assert.IsTrue(importer.alphaIsTransparency);
+        Assert.IsFalse(importer.mipmapEnabled);
+
+        TextureImporterSettings settings = new TextureImporterSettings();
+        importer.ReadTextureSettings(settings);
+        Assert.AreEqual((int)SpriteAlignment.BottomCenter, settings.spriteAlignment);
+    }
+
+    private static void AssertResidentPrefab(string prefabPath, string spriteName, float height)
+    {
+        SpriteRenderer body = FindBody(prefabPath);
+        Assert.IsNotNull(body, prefabPath);
+        Assert.IsNotNull(body.sprite, prefabPath + " 不应再使用空 sprite");
+        StringAssert.Contains(spriteName, body.sprite.name);
+        Assert.AreEqual(height, CharacterArtApplier.ResolveWorldSize(body).y, 0.02f);
+        AssertColorWhite(body.color);
+    }
+
+    private static void AssertPose(CharacterArtConfig config, ResidentId id, NpcVisualPose pose, string spriteName, float height)
+    {
+        CharacterArtEntry entry = pose == NpcVisualPose.Walking
+            ? config.ForResidentWalking(id)
+            : config.ForResidentTalking(id);
+        Assert.IsNotNull(entry);
+        Assert.IsNotNull(entry.sprite);
+        StringAssert.Contains(spriteName, entry.sprite.name);
+        Assert.AreEqual(height, entry.height, 0.001f);
+        Assert.IsFalse(entry.tintByWarmth);
     }
 }

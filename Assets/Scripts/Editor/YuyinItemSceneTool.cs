@@ -10,11 +10,11 @@ using Object = UnityEngine.Object;
 ///
 /// 特点：
 ///   1. 幂等：重复运行只会补缺失的对象，不会重复创建；
-///   2. 不破坏已有内容：已经有同 placementId 的放置点会直接跳过，
-///      所以你手动调过位置之后再跑一次，位置不会被重置；
+///   2. 权威布局：运行后会按 ScenePlacementLayout 同步放置点的坐标、区域和放置面；
 ///   3. 放置点就是普通场景物体（挂 PlacementPoint），后期随便拖。
 ///
-/// 用法：打开 FirstFloor 或 Backyard，菜单 Tools → 余音 → 在当前场景补齐物品与放置点。
+/// 用法：打开 FirstFloor / SecondFloor / Backyard，
+/// 菜单 Tools → 余音 → 在当前场景补齐物品与放置点。
 /// </summary>
 public static class YuyinItemSceneTool
 {
@@ -25,18 +25,8 @@ public static class YuyinItemSceneTool
     private const string ItemsRootName = "Items";
     private const string StagingRootName = "PoolStaging";
 
-    /// <summary>母亲机制本次不做：先不生成母亲的物品 View。要做母亲线时改成 true 再跑一次菜单即可。</summary>
-    private const bool IncludeMotherItems = false;
-
     /// <summary>物品池里的物品暂时放在这个位置（画面外），运行时会被吸附到真正的放置点。</summary>
     private static readonly Vector3 StagingOrigin = new Vector3(-40f, -40f, 0f);
-
-    private struct PlacementSpec
-    {
-        public string id;
-        public PlacementSurface surface;
-        public Vector3 position;
-    }
 
     [MenuItem("Tools/余音/在当前场景补齐物品与放置点")]
     public static void EnsureInCurrentScene()
@@ -45,7 +35,7 @@ public static class YuyinItemSceneTool
         AreaId area = AreaIdUtil.FromSceneName(scene.name);
         if (area == AreaId.None)
         {
-            Notify("当前场景不是 FirstFloor / Backyard，无法判断区域。");
+            Notify("当前场景不是 FirstFloor / SecondFloor / Backyard，无法判断区域。");
             return;
         }
 
@@ -78,7 +68,7 @@ public static class YuyinItemSceneTool
         AssetDatabase.SaveAssets();
 
         Debug.Log(string.Format(
-            "[余音·物品] {0}：新增放置点 {1} 个、物品 View {2} 个（重复运行不会重复创建，已有放置点位置保持不变）。",
+            "[余音·物品] {0}：新增放置点 {1} 个、物品 View {2} 个（放置点已按统一布局同步）。",
             scene.name, createdPoints, createdItems));
     }
 
@@ -91,6 +81,9 @@ public static class YuyinItemSceneTool
             EnsureInCurrentScene();
 
             EditorSceneManager.OpenScene("Assets/Scenes/Backyard.unity", OpenSceneMode.Single);
+            EnsureInCurrentScene();
+
+            EditorSceneManager.OpenScene("Assets/Scenes/SecondFloor.unity", OpenSceneMode.Single);
             EnsureInCurrentScene();
 
             AssetDatabase.SaveAssets();
@@ -110,57 +103,36 @@ public static class YuyinItemSceneTool
     private static int EnsurePlacementPoints(Scene scene, AreaId area, Transform parent)
     {
         int created = 0;
-        List<PlacementSpec> specs = GetPlacementSpecs(area);
+        List<ScenePlacementSpec> specs = ScenePlacementLayout.ForArea(area);
+        List<PlacementPoint> existingPoints = FindAllInScene<PlacementPoint>(scene);
+        for (int i = existingPoints.Count - 1; i >= 0; i--)
+        {
+            PlacementPoint point = existingPoints[i];
+            if (point != null && !ScenePlacementLayout.Contains(area, point.placementId))
+                Object.DestroyImmediate(point.gameObject);
+        }
 
         for (int i = 0; i < specs.Count; i++)
         {
-            PlacementSpec spec = specs[i];
-            if (FindPlacementPoint(scene, spec.id) != null) continue; // 已有：保留用户改过的位置
+            ScenePlacementSpec spec = specs[i];
+            PlacementPoint point = FindPlacementPoint(scene, spec.id);
+            if (point == null)
+            {
+                GameObject go = new GameObject(spec.id);
+                go.transform.SetParent(parent, false);
+                point = go.AddComponent<PlacementPoint>();
+                created++;
+            }
 
-            GameObject go = new GameObject(spec.id);
-            go.transform.SetParent(parent, false);
-            go.transform.position = spec.position;
-
-            PlacementPoint point = go.AddComponent<PlacementPoint>();
+            point.transform.position = spec.position;
             point.placementId = spec.id;
-            point.area = area;
+            point.area = spec.area;
             point.surface = spec.surface;
-            created++;
+            point.anchor = null;
+            EditorUtility.SetDirty(point);
         }
 
         return created;
-    }
-
-    private static List<PlacementSpec> GetPlacementSpecs(AreaId area)
-    {
-        if (area == AreaId.FirstFloor)
-        {
-            return new List<PlacementSpec>
-            {
-                Spec("first_rack", PlacementSurface.HangingRack, -8.0f, 1.8f),
-                Spec("first_ground_a", PlacementSurface.Ground, -6.5f, -2.6f),
-                Spec("first_ground_b", PlacementSurface.Ground, 0.0f, -2.6f),
-                Spec("first_ground_c", PlacementSurface.Ground, 6.5f, -2.6f),
-                Spec("first_on_item", PlacementSurface.OnItem, 6.0f, -1.2f)
-            };
-        }
-
-        return new List<PlacementSpec>
-        {
-            Spec("backyard_ground_a", PlacementSurface.Ground, -5.5f, -2.6f),
-            Spec("backyard_ground_b", PlacementSurface.Ground, 0.0f, -2.6f),
-            Spec("backyard_ground_c", PlacementSurface.Ground, 5.5f, -2.6f),
-            Spec("backyard_on_item", PlacementSurface.OnItem, 2.5f, -1.0f)
-        };
-    }
-
-    private static PlacementSpec Spec(string id, PlacementSurface surface, float x, float y)
-    {
-        PlacementSpec spec = new PlacementSpec();
-        spec.id = id;
-        spec.surface = surface;
-        spec.position = new Vector3(x, y, 0f);
-        return spec;
     }
 
     // ------------------------------------------------------------------
@@ -177,13 +149,28 @@ public static class YuyinItemSceneTool
             ItemConfig definition = config.items[i];
             if (definition == null || string.IsNullOrEmpty(definition.itemId)) continue;
 
-            if (!IncludeMotherItems && definition.owner == ItemOwner.Mother)
+            if (definition.owner == ItemOwner.Mother && area != AreaId.SecondFloor)
             {
                 skippedMother++;
                 continue;
             }
 
-            if (FindItemView(scene, definition.itemId) != null) continue; // 已有：不重复创建
+            ItemView existingView = FindItemView(scene, definition.itemId);
+            if (existingView != null)
+            {
+                if (definition.startsInScene && definition.startArea == area
+                    && !string.IsNullOrEmpty(definition.startPlacementId))
+                {
+                    PlacementPoint startPoint = FindPlacementPoint(scene, definition.startPlacementId);
+                    if (startPoint != null)
+                    {
+                        existingView.transform.SetParent(itemsRoot, true);
+                        existingView.transform.position = startPoint.AnchorPosition;
+                        EditorUtility.SetDirty(existingView);
+                    }
+                }
+                continue; // 已有：不重复创建
+            }
 
             string prefabPath = PrefabPathFor(definition.owner);
             GameObject prefab = string.IsNullOrEmpty(prefabPath) ? null : AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
@@ -231,7 +218,7 @@ public static class YuyinItemSceneTool
 
         if (skippedMother > 0)
         {
-            Debug.Log("[余音·物品] 母亲物品本次不做，已跳过 " + skippedMother + " 件（要启用把 IncludeMotherItems 改成 true）。");
+            Debug.Log("[余音·物品] 母亲物品只在 SecondFloor 生成，本场景跳过 " + skippedMother + " 件。");
         }
 
         return created;

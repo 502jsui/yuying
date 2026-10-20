@@ -317,7 +317,7 @@ public class GameFlowPlayModeTests
         // 不手动调 NotifyNpcActionDone：必须由 NpcPhaseDriver 自己跑完并推进到第 2 轮。
         yield return WaitUntil(
             delegate { return GameRoot.Instance.Session.round == 2; },
-            25f,
+            45f,
             "NPC 驱动自动跑完行动阶段并进入第 2 轮");
 
         EventBus.Unsubscribe(handler);

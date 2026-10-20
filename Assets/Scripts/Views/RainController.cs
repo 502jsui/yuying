@@ -62,6 +62,7 @@ public class RainController : MonoBehaviour
     private Coroutine lightningRoutine;
     private int backgroundStreakCount = 200;
     private int foregroundStreakCount = 110;
+    private float cameraFitGroundY;
     private const float BaseViewWidth = 19.2f;
 
     /// <summary>拼接阶段：地面溅水 / 涟漪只允许出现在露天的这半边（屋顶下不出现）。</summary>
@@ -76,6 +77,7 @@ public class RainController : MonoBehaviour
 
     private void Awake()
     {
+        cameraFitGroundY = groundY;
         if (gameObject.scene.name == "FirstFloor")
         {
             gameObject.SetActive(false);
@@ -326,17 +328,18 @@ public class RainController : MonoBehaviour
     }
 
     /// <summary>
-    /// NPC 行动拼接阶段：雨铺满整个拼接场景（宽度变宽、雨量按比例加），
-    /// 但在一楼那半边的「盖子」以下不显示雨 —— 看起来就是雨落在盖子上。
+    /// NPC 行动拼接阶段：雨铺满整栋楼（宽度 / 高度都扩展、雨量按比例加），
+    /// 但二楼屋顶线以下不显示雨 —— 看起来就是雨落在二楼顶上。
     /// 雷 / 色调叠加层挂在对准整个拼接场景的相机下，所以会覆盖全场景。
     /// </summary>
     public void ApplyStitchedLayout(Vector3 worldCenter, float totalWidth, float totalHeight,
-                                    float roofMinX, float roofMaxX, float roofTopY)
+                                    float worldGroundY, float roofMinX, float roofMaxX, float roofTopY)
     {
         transform.position = new Vector3(worldCenter.x, worldCenter.y, transform.position.z);
 
         width = totalWidth;
         height = totalHeight;
+        groundY = worldGroundY;
 
         float widthScale = Mathf.Clamp(width / Mathf.Max(1f, BaseViewWidth), 1f, 3f);
         int backgroundCount = Mathf.Max(1, Mathf.RoundToInt(backgroundRate * widthScale * Mathf.Max(0.05f, intensity)));
@@ -365,6 +368,7 @@ public class RainController : MonoBehaviour
     /// <summary>拼接结束：雨场恢复成单场景（按相机取景），并取消屋盖排除。</summary>
     public void RestoreToCameraFit()
     {
+        groundY = cameraFitGroundY;
         FitFieldToCamera();
 
         ApplyFieldLayout(backgroundRain, backgroundStreakCount, 0f, 0f, 0f);
@@ -405,9 +409,7 @@ public class RainController : MonoBehaviour
     {
         if (field == null) return;
 
-        field.width = width;
-        field.height = height;
-        field.SetStreakCount(count);
+        field.SetBounds(width, height, groundY, count);
 
         if (roofMaxX > roofMinX) field.SetExclusion(roofMinX, roofMaxX, roofTopY);
         else field.ClearExclusion();

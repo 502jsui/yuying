@@ -29,6 +29,9 @@ public class NpcPhaseDriver : MonoBehaviour
     /// <summary>行动阶段被临时关掉的巡逻，收尾时按原位恢复（范围锚到当前位置）。</summary>
     private readonly List<NpcPatrol2D> phasePatrols = new List<NpcPatrol2D>();
     private readonly List<bool> phasePatrolWasEnabled = new List<bool>();
+    private const float WanderDistance = 2.2f;
+    private const float ActorLocalMinX = -8.2f;
+    private const float ActorLocalMaxX = 8.2f;
 
     public void Initialize(NpcSystem npcSystem, GameFlow gameFlow, GameConfig gameConfig)
     {
@@ -81,16 +84,17 @@ public class NpcPhaseDriver : MonoBehaviour
         float delay = config != null ? Mathf.Max(0f, config.npcActionStepDelay) : 0f;
         List<ResidentData> actors = npc.GetActors();
 
-        // NPC 行动阶段：把一楼 + 后院拼成一个整场景，住户可以自由穿梭。
+        // NPC 行动阶段：二楼叠在一楼正上方，后院接在右侧，镜头拉远看整栋楼。
         SceneStitcher stitcher = SceneStitcher.Instance;
         if (stitcher != null) yield return stitcher.Begin(CurrentArea());
+        ReportProgress();
 
         // 行动阶段完全由驱动接管移动：先关掉所有巡逻，否则巡逻会把越界的角色钳回 minX/maxX（瞬移）。
         leftHomeThisRound.Clear();
         DisablePatrolsForPhase();
 
-        // 异常情况.pdf：场上没被碰过的物品 ≤1 件 → 这一轮必有住户拿出物品。
-        npc.ForceTakeOutNext = npc.CountUntouchedItems(CurrentArea()) <= 1;
+        // 异常情况.pdf：住户可活动的场景里没被碰过的物品 ≤1 件 → 这一轮必有住户拿出物品。
+        npc.ForceTakeOutNext = CountActorAreaUntouchedItems() <= 1;
 
         for (int i = 0; i < actors.Count; i++)
         {
@@ -104,13 +108,19 @@ public class NpcPhaseDriver : MonoBehaviour
                 // 先走位：拿出 → 目标放置点；拿回 → 物品所在点；
                 // 移动物品 → 先去物品那儿，再去新的放置点。跨场景则传送过去。
                 yield return MoveIntoPosition(record);
+                ReportProgress();
+                npc.SetVisualPose(
+                    record.actor,
+                    record.action == NpcActionType.Talk ? NpcVisualPose.Talking : NpcVisualPose.Default);
 
                 NpcActionResult result = npc.Execute(record);
                 Publish(record, result);
+                ReportProgress();
 
                 // 每个行动之间留一点时间，让表现层（开门 / 走动 / 微光）有机会播。
                 if (delay > 0f) yield return new WaitForSeconds(delay);
                 else yield return null;
+                ReportProgress();
             }
         }
 
@@ -121,13 +131,26 @@ public class NpcPhaseDriver : MonoBehaviour
 
         // 没能走回家的人（还在另一个场景 / 不回家的那位除外）统一补一次关门
         CloseDoorsForLeftovers(roundEnd);
-
-        // 行动演完，拆开两个场景、相机恢复。
-        if (stitcher != null) yield return stitcher.End();
-
+        npc.SettleIdleStates(roundEnd);
         RestorePatrolsAfterPhase();
+
+        // 行动演完，拆开三区域、相机恢复。
+        if (stitcher != null) yield return stitcher.End();
+        ReportProgress();
+
         running = null;
         flow.NotifyNpcActionDone();
+    }
+
+    private void ReportProgress()
+    {
+        if (flow != null) flow.NotifyNpcActionProgress();
+    }
+
+    private int CountActorAreaUntouchedItems()
+    {
+        return npc.CountUntouchedItems(AreaId.FirstFloor)
+             + npc.CountUntouchedItems(AreaId.Backyard);
     }
 
     private IEnumerator WaitForTouchNarration()
@@ -157,27 +180,34 @@ public class NpcPhaseDriver : MonoBehaviour
             // 不回家的人停在原地，不下班。
             if (roundEnd.hasAbsentResident && actor.id == roundEnd.absentResident) continue;
 
-            ResidentView view = FindActorView(actor.id);
-            if (view == null || view.area != CurrentArea()) continue;
+            ResidentView homeView = FindActorViewExact(actor.id, actor.homeArea);
+            if (homeView == null) continue;
 
-            bool alreadyHome = Mathf.Abs(view.transform.position.x - view.HomePosition.x) < 0.05f;
+            float homeWorldX = SceneStitcher.WorldX(actor.homeArea, homeView.HomePosition.x);
+            bool alreadyHome = actor.currentArea == actor.homeArea
+                && Mathf.Abs(homeView.transform.position.x - homeWorldX) < 0.05f;
             if (alreadyHome)
             {
                 // 已经站在门口：不用走位，但还是要"关门"
                 SetOutside(actor, false, leftHomeThisRound.Remove(actor.id));
+                npc.SetVisualPose(actor.id, NpcVisualPose.Default);
                 continue;
             }
 
             // 回家路上保持可见（这里不重复发开门声），走到门口再进「门里面」。
             SetOutside(actor, true, false);
+            npc.SetVisualPose(actor.id, NpcVisualPose.Walking);
             Vector3 home = new Vector3(
-                SceneStitcher.WorldX(view.area, view.HomePosition.x),
-                view.HomePosition.y,
-                view.HomePosition.z);
-            yield return TravelTo(actor.id, view.area, null, true, home);
+                homeWorldX,
+                homeView.HomePosition.y,
+                homeView.HomePosition.z);
+            yield return TravelTo(actor.id, actor.homeArea, null, true, home);
+            ReportProgress();
 
             // 只有本轮真的开过门的人，才给一声关门
+            npc.MoveResidentToArea(actor.id, actor.homeArea);
             SetOutside(actor, false, leftHomeThisRound.Remove(actor.id));
+            npc.SetVisualPose(actor.id, NpcVisualPose.Default);
         }
     }
 
@@ -288,9 +318,14 @@ public class NpcPhaseDriver : MonoBehaviour
       {
           // 出门行动：先让他从门里出来（可见），再走位。
           ComeOutside(record.actor);
+          npc.SetVisualPose(record.actor, NpcVisualPose.Walking);
 
           switch (record.action)
         {
+            case NpcActionType.Wander:
+                yield return TravelToWanderPoint(record.actor);
+                break;
+
             case NpcActionType.TakeOutItem:
                 yield return TravelToPlacement(record.actor, record.area, record.placementId);
                 break;
@@ -317,6 +352,30 @@ public class NpcPhaseDriver : MonoBehaviour
         }
     }
 
+    /// <summary>闲逛必须产生可见位移，否则小女孩抽到闲逛时看起来像没有行动。</summary>
+    private IEnumerator TravelToWanderPoint(ResidentId actor)
+    {
+        ResidentData resident = npc.Session.GetResident(actor);
+        if (resident == null || resident.currentArea == AreaId.None) yield break;
+
+        AreaId area = resident.currentArea;
+        ResidentView view = FindActorViewExact(actor, area);
+        float currentWorldX = view != null
+            ? view.transform.position.x
+            : SceneStitcher.WorldX(area, resident.hasCurrentX ? resident.currentX : 0f);
+        float centerWorldX = SceneStitcher.WorldX(area, 0f);
+        float targetWorldX = currentWorldX >= centerWorldX
+            ? centerWorldX - WanderDistance
+            : centerWorldX + WanderDistance;
+        targetWorldX = Mathf.Clamp(
+            targetWorldX,
+            SceneStitcher.WorldX(area, ActorLocalMinX),
+            SceneStitcher.WorldX(area, ActorLocalMaxX));
+
+        float y = view != null ? view.transform.position.y : 0f;
+        yield return TravelTo(actor, area, null, true, new Vector3(targetWorldX, y, 0f));
+    }
+
     private IEnumerator TravelToPlacement(ResidentId actor, AreaId area, string placementId)
     {
         PlacementPoint point = PlacementPoint.Find(placementId);
@@ -336,7 +395,7 @@ public class NpcPhaseDriver : MonoBehaviour
         if (targetData == null) yield break;
 
         AreaId targetArea = targetData.currentArea;
-        if (targetArea != CurrentArea())
+        if (targetArea != CurrentArea() && !SceneStitcher.IsActive)
         {
             yield return TravelTo(actor, targetArea, null, false, Vector3.zero);
             yield break;
@@ -360,7 +419,7 @@ public class NpcPhaseDriver : MonoBehaviour
         ResidentData resident = npc.Session.GetResident(actor);
         if (resident == null || area == AreaId.None) yield break;
 
-        // 拼接模式：两个场景左右相连，直接在世界坐标里横着走过去（可以跨接缝）。
+        // 拼接模式：一楼与后院在世界坐标里横向相连，可以直接跨过接缝。
         if (SceneStitcher.IsActive)
         {
             if (hasPosition) yield return MoveStitched(actor, area, position.x);
@@ -412,9 +471,11 @@ public class NpcPhaseDriver : MonoBehaviour
         Vector3 from = view.transform.position;
         float groundY = from.y;
         Vector3 destination = new Vector3(target.x, groundY, from.z);
+        if (Mathf.Abs(destination.x - from.x) > 0.05f)
+            view.SetFacing(destination.x < from.x);
 
         float distance = Mathf.Abs(destination.x - from.x);
-        float speed = config != null ? Mathf.Max(0.1f, config.npcTravelSpeed) : 3.5f;
+        float speed = TravelSpeedFor(view.id);
         float minDuration = config != null ? Mathf.Max(0.05f, config.npcTravelDuration) : 0.7f;
         float duration = Mathf.Max(minDuration, distance / speed);
 
@@ -472,7 +533,18 @@ public class NpcPhaseDriver : MonoBehaviour
         return FindActorView(actor, area);
     }
 
-    /// <summary>在所有已加载场景里找某个住户、某个区域的 View（拼接时两个场景都加载着）。</summary>
+    private ResidentView FindActorViewExact(ResidentId actor, AreaId area)
+    {
+        ResidentView[] views = Object.FindObjectsOfType<ResidentView>();
+        for (int i = 0; i < views.Length; i++)
+        {
+            ResidentView view = views[i];
+            if (view != null && view.id == actor && view.area == area) return view;
+        }
+        return null;
+    }
+
+    /// <summary>在所有已加载场景里找某个住户、某个区域的 View（拼接时多个场景同时加载）。</summary>
     private ResidentView FindActorView(ResidentId actor, AreaId area)
     {
         ResidentView[] views = Object.FindObjectsOfType<ResidentView>();
@@ -495,14 +567,22 @@ public class NpcPhaseDriver : MonoBehaviour
         ResidentData resident = npc.Session.GetResident(actor);
         if (resident == null) yield break;
 
+        if (resident.currentArea == AreaId.SecondFloor || targetArea == AreaId.SecondFloor)
+        {
+            yield return MoveWithinStitchedFloor(actor, targetArea, targetWorldX);
+            yield break;
+        }
+
         // 起点必须是「他现在实际站的位置」，否则第一次走位会瞬移过去。
-        ResidentView currentView = FindActorView(resident.id, resident.currentArea);
+        ResidentView currentView = FindActorViewExact(resident.id, resident.currentArea);
         float startWorldX = currentView != null
             ? currentView.transform.position.x
             : SceneStitcher.WorldX(resident.currentArea, resident.hasCurrentX ? resident.currentX : targetWorldX);
+        resident.facingLeft = targetWorldX < startWorldX;
+        if (currentView != null) currentView.SetFacing(resident.facingLeft);
 
         float distance = Mathf.Abs(targetWorldX - startWorldX);
-        float speed = config != null ? Mathf.Max(0.1f, config.npcTravelSpeed) : 3.5f;
+        float speed = TravelSpeedFor(actor);
         float minDuration = config != null ? Mathf.Max(0.05f, config.npcTravelDuration) : 0.7f;
         float duration = Mathf.Max(minDuration, distance / speed);
 
@@ -519,6 +599,46 @@ public class NpcPhaseDriver : MonoBehaviour
         resident.currentArea = targetArea;
         resident.currentX = SceneStitcher.LocalX(targetArea, targetWorldX);
         resident.hasCurrentX = true;
+    }
+
+    /// <summary>二楼不参与楼下接缝映射，移动时只改二楼自己的 View。</summary>
+    private IEnumerator MoveWithinStitchedFloor(ResidentId actor, AreaId targetArea, float targetWorldX)
+    {
+        ResidentData resident = npc.Session.GetResident(actor);
+        ResidentView view = FindActorViewExact(actor, targetArea);
+        if (resident == null || view == null) yield break;
+
+        float startWorldX = view.transform.position.x;
+        float groundY = view.transform.position.y;
+        resident.facingLeft = targetWorldX < startWorldX;
+        view.SetFacing(resident.facingLeft);
+
+        float distance = Mathf.Abs(targetWorldX - startWorldX);
+        float speed = TravelSpeedFor(actor);
+        float minDuration = config != null ? Mathf.Max(0.05f, config.npcTravelDuration) : 0.7f;
+        float duration = Mathf.Max(minDuration, distance / speed);
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Mathf.Min(Time.deltaTime, 0.05f);
+            float x = Mathf.Lerp(startWorldX, targetWorldX, Mathf.Clamp01(elapsed / duration));
+            view.transform.position = new Vector3(x, groundY, view.transform.position.z);
+            yield return null;
+        }
+
+        view.transform.position = new Vector3(targetWorldX, groundY, view.transform.position.z);
+        resident.currentArea = targetArea;
+        resident.currentX = SceneStitcher.LocalX(targetArea, targetWorldX);
+        resident.hasCurrentX = true;
+        resident.groundY = view.groundY;
+        resident.hasGroundY = true;
+    }
+
+    private float TravelSpeedFor(ResidentId actor)
+    {
+        float baseSpeed = config != null ? Mathf.Max(0.1f, config.npcTravelSpeed) : 3.5f;
+        return actor == ResidentId.Girl ? baseSpeed * 1.8f : baseSpeed;
     }
 
     private void ApplyStitchedX(ResidentData resident, float worldX)
@@ -540,21 +660,22 @@ public class NpcPhaseDriver : MonoBehaviour
         resident.currentX = SceneStitcher.LocalX(area, worldX);
         resident.hasCurrentX = true;
 
-        ResidentView view = FindActorView(resident.id, area);
+        ResidentView view = FindActorViewExact(resident.id, area);
         if (view == null) return;
 
         // 保险：拼接走位期间巡逻必须关着，否则它会把刚走出去的角色钳回 minX/maxX。
         NpcPatrol2D patrol = view.GetComponent<NpcPatrol2D>();
         if (patrol != null && patrol.enabled) patrol.enabled = false;
 
-        // 统一地面高度：两个场景的"地面线"不一样，不统一的话跨接缝会像在飞。
+        // 统一地面高度：一楼与后院的"地面线"不一样，不统一的话跨接缝会像在飞。
         if (!resident.hasGroundY)
         {
             resident.groundY = view.groundY;
             resident.hasGroundY = true;
         }
 
-        view.transform.position = new Vector3(worldX, resident.groundY, view.transform.position.z);
+        float worldY = resident.groundY + SceneStitcher.OffsetYFor(area);
+        view.transform.position = new Vector3(worldX, worldY, view.transform.position.z);
     }
 
     private AreaId CurrentArea()

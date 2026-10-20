@@ -71,21 +71,21 @@ MonoBehaviour:
     hasAwareness: 0
     actionMin: 1
     actionMax: 2
-    homeArea: 1
+    homeArea: 2
   - id: 0
     warmth: 30
     awareness: 30
     hasAwareness: 1
     actionMin: 0
     actionMax: 0
-    homeArea: 1
+    homeArea: 2
   items:
   - itemId: grandma_01
     owner: 0
     type: 1
     startsInScene: 1
-    startArea: 1
-    startPlacementId: first_rack
+    startArea: 3
+    startPlacementId: backyard_rack_a
   - itemId: grandma_02
     owner: 0
     type: 2
@@ -119,21 +119,21 @@ MonoBehaviour:
   - itemId: mother_01
     owner: 2
     type: 1
-    startsInScene: 0
-    startArea: 0
-    startPlacementId: 
+    startsInScene: 1
+    startArea: 2
+    startPlacementId: second_rack
   - itemId: mother_02
     owner: 2
     type: 6
-    startsInScene: 0
-    startArea: 0
-    startPlacementId: 
+    startsInScene: 1
+    startArea: 2
+    startPlacementId: second_ground
   - itemId: mother_03
     owner: 2
     type: 7
-    startsInScene: 0
-    startArea: 0
-    startPlacementId: 
+    startsInScene: 1
+    startArea: 2
+    startPlacementId: second_on_item
   rainLoop: {fileID: 8300000, guid: 3b881426874195141a505e1049561498, type: 3}
   musicLoop: {fileID: 8300000, guid: 19a8cc86749450045816c86bd32bb8a1, type: 3}
   autoPlayMusicOnStart: 1

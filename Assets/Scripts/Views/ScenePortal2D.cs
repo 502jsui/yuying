@@ -30,6 +30,14 @@ public class ScenePortal2D : MonoBehaviour
     public float arrivalOffset = 2.6f;
     public float arrivalDirection = 1f;
 
+    [Header("第二出口（可选）")]
+    [Tooltip("同一个门口再提供一个目的地，例如一楼右侧既可去后院也可上二楼。")]
+    public string alternateSceneName;
+    public string alternateArrivalPortalId;
+    public float alternateArrivalDirection = 1f;
+    public KeyCode alternateInteractKey = KeyCode.G;
+    public string alternateHintText;
+
     private bool hintShown;
     private string shownHint;
     private bool switching;
@@ -64,38 +72,71 @@ public class ScenePortal2D : MonoBehaviour
         }
 
         bool inRange = (player.position - transform.position).sqrMagnitude <= radius * radius;
-        if (inRange) PublishHint(true, ResolveHintText());
+        if (inRange) PublishHint(true, ResolveCombinedHintText());
         else PublishHint(false, null);
 
         if (inRange && Input.GetKeyDown(interactKey))
         {
             TryUsePortal();
         }
+        else if (inRange && HasAlternateExit() && Input.GetKeyDown(alternateInteractKey))
+        {
+            TryUseAlternatePortal();
+        }
     }
 
     /// <summary>输入和测试共用的入口：满足条件就切到目标场景，返回是否真的开始切。</summary>
     public bool TryUsePortal()
     {
-        if (!enabledPortal || switching || player == null || string.IsNullOrWhiteSpace(sceneName)) return false;
+        return TryUse(sceneName, arrivalPortalId, arrivalDirection);
+    }
+
+    /// <summary>第二出口：例如一楼右侧的 G 键上二楼。</summary>
+    public bool TryUseAlternatePortal()
+    {
+        if (!HasAlternateExit()) return false;
+        return TryUse(alternateSceneName, alternateArrivalPortalId, alternateArrivalDirection);
+    }
+
+    private bool TryUse(string targetScene, string targetArrivalPortalId, float targetArrivalDirection)
+    {
+        if (!enabledPortal || switching || player == null || string.IsNullOrWhiteSpace(targetScene)) return false;
         if (!CanInteractNow()) return false;
         if ((player.position - transform.position).sqrMagnitude > radius * radius) return false;
 
-        if (!Application.CanStreamedLevelBeLoaded(sceneName))
+        if (!Application.CanStreamedLevelBeLoaded(targetScene))
         {
-            Debug.LogWarning("[场景门] 目标场景没进 Build Settings：" + sceneName);
+            Debug.LogWarning("[场景门] 目标场景没进 Build Settings：" + targetScene);
             return false;
         }
 
         switching = true;
         PublishHint(false, null);
-        StartCoroutine(LoadNextScene());
+        StartCoroutine(LoadNextScene(targetScene, targetArrivalPortalId));
         return true;
     }
 
-    /// <summary>当前门口提示文案（hintText 有值就优先用它）。</summary>
+    /// <summary>当前门口提示文案（双出口时合并成一行）。</summary>
+    public string ResolveCombinedHintText()
+    {
+        string primary = ResolveHintText();
+        if (!HasAlternateExit()) return primary;
+
+        string alternate = ResolveHintText(alternateSceneName, alternateHintText, alternateInteractKey);
+        if (string.IsNullOrEmpty(primary)) return alternate;
+        if (string.IsNullOrEmpty(alternate)) return primary;
+        return primary + "　·　" + alternate;
+    }
+
+    /// <summary>主出口提示文案（hintText 有值就优先用它）。</summary>
     public string ResolveHintText()
     {
         return ResolveHintText(sceneName, hintText, interactKey);
+    }
+
+    private bool HasAlternateExit()
+    {
+        return !string.IsNullOrWhiteSpace(alternateSceneName);
     }
 
     /// <summary>纯函数：按目标场景给门口提示（方便单测 / 以后改键）。</summary>
@@ -104,8 +145,9 @@ public class ScenePortal2D : MonoBehaviour
         if (!string.IsNullOrEmpty(overrideText)) return overrideText;
 
         string keyName = key.ToString();
-        if (targetScene == "Backyard") return "按 " + keyName + " 出门";
-        if (targetScene == "FirstFloor") return "按 " + keyName + " 回屋";
+        if (targetScene == "Backyard") return "按 " + keyName + " 去后院";
+        if (targetScene == "FirstFloor") return "按 " + keyName + " 回一楼";
+        if (targetScene == "SecondFloor") return "按 " + keyName + " 上楼";
         return "按 " + keyName + " 切换场景";
     }
 
@@ -134,14 +176,14 @@ public class ScenePortal2D : MonoBehaviour
     }
 
     /// <summary>淡出 0.25 秒 → 异步加载下一个场景 → 淡入；避免切场景时的卡顿。</summary>
-    private System.Collections.IEnumerator LoadNextScene()
+    private System.Collections.IEnumerator LoadNextScene(string targetScene, string targetArrivalPortalId)
     {
-        SceneTransitionState.SetArrival(arrivalPortalId);
+        SceneTransitionState.SetArrival(targetArrivalPortalId);
         SceneTransitionState.BeginLoad();
 
         while (SceneTransitionState.FadeAlpha < 0.99f) yield return null;
 
-        AsyncOperation operation = SceneManager.LoadSceneAsync(sceneName);
+        AsyncOperation operation = SceneManager.LoadSceneAsync(targetScene);
         while (operation != null && !operation.isDone) yield return null;
 
         // 正常情况到这里已经随场景销毁了；如果没销毁（比如目标场景没配好），这里兜一次底。

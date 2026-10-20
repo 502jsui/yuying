@@ -41,12 +41,13 @@ public class RainStreakField2D : MonoBehaviour
         useExclusion = false;
     }
 
-    /// <summary>改变雨丝数量（拼接时按整场景宽度加雨量）。</summary>
-    public void SetStreakCount(int count)
+    /// <summary>拼接或恢复时重设雨场边界，并让雨丝按新范围重新分布。</summary>
+    public void SetBounds(float fieldWidth, float fieldHeight, float fieldGroundY, int count)
     {
-        int clamped = Mathf.Max(1, count);
-        if (clamped == streakCount && streaks != null) return;
-        streakCount = clamped;
+        width = Mathf.Max(0.1f, fieldWidth);
+        height = Mathf.Max(0.1f, fieldHeight);
+        groundY = fieldGroundY;
+        streakCount = Mathf.Max(1, count);
         Build();
     }
 

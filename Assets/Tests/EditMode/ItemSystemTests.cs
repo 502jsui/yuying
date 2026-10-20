@@ -53,14 +53,14 @@ public class ItemSystemTests
     }
 
     [Test]
-    public void InitializeFromConfig_TwoItemsStartInScene_RestInPool()
+    public void InitializeFromConfig_ClothesStartOnBackyardRack()
     {
         Assert.AreEqual(9, session.items.Count);
 
         ItemData clothes = items.GetItem("grandma_01");
         Assert.IsTrue(clothes.IsInScene);
-        Assert.AreEqual(AreaId.FirstFloor, clothes.area);
-        Assert.AreEqual("first_rack", clothes.placementId);
+        Assert.AreEqual(AreaId.Backyard, clothes.area);
+        Assert.AreEqual("backyard_rack_a", clothes.placementId);
 
         ItemData pot = items.GetItem("aunt_01");
         Assert.IsTrue(pot.IsInScene);
@@ -88,8 +88,11 @@ public class ItemSystemTests
         Assert.IsFalse(ItemPlacementRules.CanPlace(ItemType.MedicineBag, PlacementSurface.Ground));
         Assert.IsTrue(ItemPlacementRules.CanPlace(ItemType.MedicineBag, PlacementSurface.OnItem));
         Assert.IsFalse(ItemPlacementRules.CanPlace(ItemType.ToolBag, PlacementSurface.Ground));
+        Assert.IsTrue(ItemPlacementRules.CanPlace(ItemType.ToolBag, PlacementSurface.OnItem));
         Assert.IsFalse(ItemPlacementRules.CanPlace(ItemType.WoodCarving, PlacementSurface.Ground));
+        Assert.IsTrue(ItemPlacementRules.CanPlace(ItemType.WoodCarving, PlacementSurface.OnItem));
         Assert.IsFalse(ItemPlacementRules.CanPlace(ItemType.Diary, PlacementSurface.Ground));
+        Assert.IsTrue(ItemPlacementRules.CanPlace(ItemType.Diary, PlacementSurface.OnItem));
 
         // 木箱：只能落地。
         Assert.IsTrue(ItemPlacementRules.CanPlace(ItemType.WoodenBox, PlacementSurface.Ground));
@@ -122,12 +125,12 @@ public class ItemSystemTests
         };
         EventBus.Subscribe(handler);
 
-        items.TakeOut("grandma_02", AreaId.Backyard, "backyard_ground_b", PlacementSurface.Ground);
+        items.TakeOut("grandma_02", AreaId.Backyard, "backyard_ground_a", PlacementSurface.Ground);
 
         Assert.IsTrue(fired);
         Assert.AreEqual("grandma_02", observed.itemId);
         Assert.AreEqual(AreaId.Backyard, observed.area);
-        Assert.AreEqual("backyard_ground_b", observed.placementId);
+        Assert.AreEqual("backyard_ground_a", observed.placementId);
 
         EventBus.Unsubscribe(handler);
     }
@@ -149,20 +152,16 @@ public class ItemSystemTests
     [Test]
     public void FindNextPoolItem_ReturnsSuccessiveItems_UntilPoolEmpty()
     {
-        ItemData first = items.FindNextPoolItem(ItemOwner.Mother);
-        Assert.AreEqual("mother_01", first.itemId);
-        Assert.IsTrue(items.TakeOut(first.itemId, AreaId.FirstFloor, "r", PlacementSurface.HangingRack).IsSuccess);
+        ItemData first = items.FindNextPoolItem(ItemOwner.Grandma);
+        Assert.AreEqual("grandma_02", first.itemId);
+        Assert.IsTrue(items.TakeOut(first.itemId, AreaId.FirstFloor, "g", PlacementSurface.Ground).IsSuccess);
 
-        ItemData second = items.FindNextPoolItem(ItemOwner.Mother);
-        Assert.AreEqual("mother_02", second.itemId);
-        Assert.IsTrue(items.TakeOut(second.itemId, AreaId.FirstFloor, "g", PlacementSurface.Ground).IsSuccess);
+        ItemData second = items.FindNextPoolItem(ItemOwner.Grandma);
+        Assert.AreEqual("grandma_03", second.itemId);
+        Assert.IsTrue(items.TakeOut(second.itemId, AreaId.FirstFloor, "o", PlacementSurface.OnItem).IsSuccess);
 
-        ItemData third = items.FindNextPoolItem(ItemOwner.Mother);
-        Assert.AreEqual("mother_03", third.itemId);
-        Assert.IsTrue(items.TakeOut(third.itemId, AreaId.FirstFloor, "o", PlacementSurface.OnItem).IsSuccess);
-
-        Assert.IsFalse(items.HasItemInPool(ItemOwner.Mother));
-        Assert.IsNull(items.FindNextPoolItem(ItemOwner.Mother));
+        Assert.IsFalse(items.HasItemInPool(ItemOwner.Grandma));
+        Assert.IsNull(items.FindNextPoolItem(ItemOwner.Grandma));
     }
 
     [Test]
@@ -173,7 +172,7 @@ public class ItemSystemTests
         PlacementRegistry.Register(new PlacementOption { placementId = "t_on_item", area = AreaId.FirstFloor, surface = PlacementSurface.OnItem });
 
         int before = items.GetSceneItems(AreaId.FirstFloor).Count;
-        Assert.AreEqual(2, before, "开局默认两件物品在场景里。");
+        Assert.AreEqual(1, before, "一楼开局只有大叔的花盆。");
 
         int placed = items.EnsureSceneItems(AreaId.FirstFloor, before + 2);
 
@@ -382,15 +381,15 @@ public class ItemSystemTests
         session.GetResident(ResidentId.Uncle).currentArea = AreaId.FirstFloor;
         session.SetNpcState(ResidentId.Uncle, NpcState.StayOut);
         items.SetAreaBlocked(AreaId.FirstFloor, ResidentId.Uncle);
-        ItemData item = items.GetItem("grandma_01");
+        ItemData item = items.GetItem("aunt_01");
 
-        ItemActionResult warning1 = items.Touch("grandma_01");
+        ItemActionResult warning1 = items.Touch("aunt_01");
         Assert.AreEqual(ItemActionStatus.ForceTouchWarned, warning1.status);
         Assert.AreEqual(1, session.forceTouchWarningsUsed);
         Assert.IsFalse(item.hasTemperature);
         Assert.AreEqual(0, session.touchesThisRound);
 
-        ItemActionResult warning2 = items.Touch("grandma_01");
+        ItemActionResult warning2 = items.Touch("aunt_01");
         Assert.AreEqual(ItemActionStatus.ForceTouchWarned, warning2.status);
         Assert.AreEqual(2, session.forceTouchWarningsUsed);
         Assert.IsFalse(item.hasTemperature);
@@ -398,7 +397,7 @@ public class ItemSystemTests
         ResidentData aunt = session.GetResident(ResidentId.Uncle);
         float warmthBefore = aunt.warmth;
 
-        ItemActionResult forced = items.Touch("grandma_01");
+        ItemActionResult forced = items.Touch("aunt_01");
         Assert.AreEqual(ItemActionStatus.ForceTouchAccepted, forced.status);
         Assert.IsTrue(item.hasTemperature);
         Assert.AreEqual(1, session.touchesThisRound);
@@ -417,8 +416,8 @@ public class ItemSystemTests
         session.SetNpcState(ResidentId.Uncle, NpcState.StayOut);
         items.SetAreaBlocked(AreaId.FirstFloor, ResidentId.Uncle);
 
-        Assert.AreEqual(ItemActionStatus.ForceTouchWarned, items.Touch("grandma_01").status);
-        Assert.AreEqual(ItemActionStatus.ForceTouchWarned, items.Touch("grandma_01").status);
+        Assert.AreEqual(ItemActionStatus.ForceTouchWarned, items.Touch("aunt_01").status);
+        Assert.AreEqual(ItemActionStatus.ForceTouchWarned, items.Touch("aunt_01").status);
         Assert.AreEqual(2, session.forceTouchWarningsUsed);
 
         // 新的一轮开始：警告额度要回到 0，节奏重新从「警告 1」算起
@@ -430,7 +429,7 @@ public class ItemSystemTests
         session.SetNpcState(ResidentId.Uncle, NpcState.StayOut);
         items.SetAreaBlocked(AreaId.FirstFloor, ResidentId.Uncle);
 
-        ItemActionResult warning = items.Touch("grandma_01");
+        ItemActionResult warning = items.Touch("aunt_01");
         Assert.AreEqual(ItemActionStatus.ForceTouchWarned, warning.status, "新一轮仍然先给警告，不该直接强碰生效");
         Assert.AreEqual(1, session.forceTouchWarningsUsed);
     }

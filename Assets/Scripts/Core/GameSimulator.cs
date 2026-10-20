@@ -20,7 +20,10 @@ public enum SimPlayerPolicy
     RoamAndWait = 2,
 
     /// <summary>每轮随机换一楼 / 后院；区域被占就强行碰。</summary>
-    RoamAndInsist = 3
+    RoamAndInsist = 3,
+
+    /// <summary>一楼 → 二楼 → 后院依次轮换；区域被占就强行碰，完整覆盖母亲物品与疑惑链。</summary>
+    FullGameAndInsist = 4
 }
 
 /// <summary>
@@ -145,11 +148,11 @@ public class SimulationOptions
     /// <summary>第 1 局的种子，之后逐局派生（同参数同结果）。</summary>
     public int seedBase = GameSimulator.DefaultSeedBase;
 
-    public SimPlayerPolicy policy = SimPlayerPolicy.StayAndInsist;
+    public SimPlayerPolicy policy = SimPlayerPolicy.FullGameAndInsist;
 
     public SimulationTuning tuning = new SimulationTuning();
 
-    /// <summary>本次 Demo 不做母亲：整条母亲链断开（没人找她、她不开门）。</summary>
+    /// <summary>调试用：断开母亲链（没人找她、她不开门）。默认关闭。</summary>
     public bool ignoreMother;
 
     /// <summary>把前几局的逐轮明细也打出来（0 = 不打）。</summary>
@@ -186,6 +189,8 @@ public struct SimGameResult
     public int itemTouches;
     public int forceTouches;
     public int forceWarnings;
+    public int motherItemTouches;
+    public int confusions;
     public int actions;
 }
 
@@ -212,10 +217,10 @@ public class SimulationReport
     public float motherDoorShare;
     public float highThreshold = 60f;
 
-    /// <summary>「整栋楼都不知道他已经死了」的第一道门槛：婆婆和大叔的暖意都超过阈值。</summary>
+    /// <summary>BE「楼道里的雨」的第一道门槛：婆婆和大叔的暖意都超过阈值。</summary>
     public int neighborsWarmBothHigh;
 
-    /// <summary>上面那些局里，另外两道门槛（至少一人知晓 ≤ 阈值、母亲没开门）也满足的局数。</summary>
+    /// <summary>最终真正判成 BE「楼道里的雨」的局数。</summary>
     public int buildingUnawareCandidates;
 
     public float averageWarmTakeBacks;
@@ -224,6 +229,8 @@ public class SimulationReport
     public float averageItemTouches;
     public float averageForceTouches;
     public float averageForceWarnings;
+    public float averageMotherItemTouches;
+    public float averageConfusions;
 
     public float[] averageWarmth;
     public float[] averageAwareness;
@@ -265,10 +272,11 @@ public class SimulationReport
             + " 次 / 玩家触碰 " + Num(averageItemTouches)
             + " 次 / 强碰生效 " + Num(averageForceTouches)
             + " 次 / 强碰警告 " + Num(averageForceWarnings) + " 次");
-        text.AppendLine("「整栋楼都不知道」三道门槛：邻居暖意都 >" + Num(highThreshold) + " 的局 "
+        text.AppendLine("完整局覆盖：母亲物品触碰 " + Num(averageMotherItemTouches)
+            + " 次 / 疑惑触发 " + Num(averageConfusions) + " 次");
+        text.AppendLine("「楼道里的雨」覆盖：邻居暖意都 >" + Num(highThreshold) + " 的局 "
             + neighborsWarmBothHigh + " / " + runs
-            + "；其中再满足「至少一人知晓 ≤" + Num(highThreshold) + " 且母亲没开门」的局 "
-            + buildingUnawareCandidates);
+            + "；最终判为「楼道里的雨」的局 " + buildingUnawareCandidates);
         text.AppendLine("平均最终暖意：老婆婆 " + Num(averageWarmth[(int)ResidentId.Grandma])
             + "  大叔 " + Num(averageWarmth[(int)ResidentId.Uncle])
             + "  小女孩 " + Num(averageWarmth[(int)ResidentId.Girl])
@@ -285,8 +293,8 @@ public class SimulationReport
         if (!motherEnabled)
         {
             text.AppendLine();
-            text.AppendLine("  注：母亲不参与时，「告别 / 互相隐瞒 / 只有母亲一个人知道」需要她开门，"
-                + "结构上不可能出现（其余 5 档可达）。");
+            text.AppendLine("  注：母亲不参与时，她不会开门，因此「雪停之前」结构上不可达；"
+                + "「楼道里的雨」和「她小时候」仍可出现。");
         }
 
         float floor = 1f / Mathf.Max(1, endingOrder.Length);
@@ -374,6 +382,7 @@ public class SimulationReport
             case SimPlayerPolicy.StayAndInsist: return "留在一楼 / 区域被占就强碰";
             case SimPlayerPolicy.RoamAndWait: return "随机换区域 / 区域被占就不碰";
             case SimPlayerPolicy.RoamAndInsist: return "随机换区域 / 区域被占就强碰";
+            case SimPlayerPolicy.FullGameAndInsist: return "完整三区域轮换 / 区域被占就强碰";
             default: return policy.ToString();
         }
     }
@@ -422,38 +431,26 @@ public static class GameSimulator
     /// <summary>结局表的固定顺序（和 EndingId 的声明顺序一致，方便两次结果对比）。</summary>
     public static readonly EndingId[] AllEndings =
     {
-        EndingId.Farewell,
-        EndingId.MutualConcealment,
-        EndingId.OnlyMotherKnows,
-        EndingId.NobodySpoke,
-        EndingId.BuildingKnowsSilentToMother,
-        EndingId.WholeBuildingUnaware,
-        EndingId.RainNeverStopped,
-        EndingId.OnlyGirlRemembers
+        EndingId.RainInTheCorridor,
+        EndingId.WhenSheWasLittle,
+        EndingId.BeforeSnowStops
     };
 
     private static readonly AreaId[] RoamAreas = { AreaId.FirstFloor, AreaId.Backyard };
+    private static readonly AreaId[] FullGameAreas = { AreaId.FirstFloor, AreaId.SecondFloor, AreaId.Backyard };
 
     // ------------------------------------------------------------------
-    // 放置点：和 Tools → 余音 → 在当前场景补齐物品 铺的点一致
+    // 放置点：直接复用场景生成工具的权威布局
     // ------------------------------------------------------------------
 
-    public static void InstallDemoPlacements()
+    public static void InstallCanonicalPlacements()
     {
-        // 模拟不认场景里注册了什么，用固定的这一套，保证任何环境下跑出来的分布都一样。
-        // （一楼 / 后院的放置点如果改了，这里要跟着改。）
         PlacementRegistry.Clear();
-
-        RegisterPlacement("first_rack", AreaId.FirstFloor, PlacementSurface.HangingRack);
-        RegisterPlacement("first_ground_a", AreaId.FirstFloor, PlacementSurface.Ground);
-        RegisterPlacement("first_ground_b", AreaId.FirstFloor, PlacementSurface.Ground);
-        RegisterPlacement("first_ground_c", AreaId.FirstFloor, PlacementSurface.Ground);
-        RegisterPlacement("first_on_item", AreaId.FirstFloor, PlacementSurface.OnItem);
-
-        RegisterPlacement("backyard_ground_a", AreaId.Backyard, PlacementSurface.Ground);
-        RegisterPlacement("backyard_ground_b", AreaId.Backyard, PlacementSurface.Ground);
-        RegisterPlacement("backyard_ground_c", AreaId.Backyard, PlacementSurface.Ground);
-        RegisterPlacement("backyard_on_item", AreaId.Backyard, PlacementSurface.OnItem);
+        for (int i = 0; i < ScenePlacementLayout.Count; i++)
+        {
+            ScenePlacementSpec spec = ScenePlacementLayout.Get(i);
+            RegisterPlacement(spec.id, spec.area, spec.surface);
+        }
     }
 
     private static void RegisterPlacement(string placementId, AreaId area, PlacementSurface surface)
@@ -478,7 +475,7 @@ public static class GameSimulator
         if (options.runs < 1) options.runs = 1;
 
         config.EnsureDefaults();
-        InstallDemoPlacements();
+        InstallCanonicalPlacements();
 
         SimulationReport report = new SimulationReport();
         report.runs = options.runs;
@@ -550,6 +547,7 @@ public static class GameSimulator
         int warmBothHigh = 0;
         int unawareCandidates = 0;
         float warm = 0f, cold = 0f, girl = 0f, touches = 0f, force = 0f, warnings = 0f;
+        float motherTouches = 0f, confusions = 0f;
         float[] warmth = new float[4];
         float[] awareness = new float[4];
         for (int i = 0; i < report.games.Count; i++)
@@ -557,15 +555,10 @@ public static class GameSimulator
             SimGameResult g = report.games[i];
             if (g.motherDoorOpen) doorOpen++;
 
-            // 「整栋楼都不知道他已经死了」的三道门槛，逐局数一数卡在哪。
+            // 暖意门槛用于观察分布；BE 次数直接按最终判定统计，避免诊断条件与规则漂移。
             bool neighborsWarmHigh = g.grandmaWarmth > report.highThreshold && g.uncleWarmth > report.highThreshold;
-            if (neighborsWarmHigh)
-            {
-                warmBothHigh++;
-                bool someoneAwarenessLow = g.grandmaAwareness <= report.highThreshold
-                    || g.uncleAwareness <= report.highThreshold;
-                if (someoneAwarenessLow && !g.motherDoorOpen) unawareCandidates++;
-            }
+            if (neighborsWarmHigh) warmBothHigh++;
+            if (g.ending == EndingId.RainInTheCorridor) unawareCandidates++;
 
             warm += g.warmTakeBacks;
             cold += g.coldTakeBacks;
@@ -573,6 +566,8 @@ public static class GameSimulator
             touches += g.itemTouches;
             force += g.forceTouches;
             warnings += g.forceWarnings;
+            motherTouches += g.motherItemTouches;
+            confusions += g.confusions;
             warmth[(int)ResidentId.Grandma] += g.grandmaWarmth;
             warmth[(int)ResidentId.Uncle] += g.uncleWarmth;
             warmth[(int)ResidentId.Girl] += g.girlWarmth;
@@ -592,6 +587,8 @@ public static class GameSimulator
         report.averageItemTouches = touches / n;
         report.averageForceTouches = force / n;
         report.averageForceWarnings = warnings / n;
+        report.averageMotherItemTouches = motherTouches / n;
+        report.averageConfusions = confusions / n;
         report.averageWarmth = new float[4];
         report.averageAwareness = new float[4];
         for (int i = 0; i < 4; i++)
@@ -644,8 +641,13 @@ public static class GameSimulator
             else counters.coldTakeBacks++;
         };
         Action<ItemMovedEvent> onMoved = delegate(ItemMovedEvent evt) { counters.girlMoves++; };
+        Action<NpcStateChangedEvent> onNpcState = delegate(NpcStateChangedEvent evt)
+        {
+            if (evt.current == NpcState.Confused) counters.confusions++;
+        };
         EventBus.Subscribe(onTaken);
         EventBus.Subscribe(onMoved);
+        EventBus.Subscribe(onNpcState);
 
         try
         {
@@ -662,7 +664,10 @@ public static class GameSimulator
                 session.BeginRound(session.hasAbsentResident, session.absentResident);
                 npc.BeginRound(session.hasAbsentResident, session.absentResident);
 
-                if (IsRoam(options.policy)) session.playerArea = random.Pick(RoamAreas);
+                if (IsFullGame(options.policy))
+                    session.playerArea = FullGameAreas[(session.round - 1) % FullGameAreas.Length];
+                else if (IsRoam(options.policy))
+                    session.playerArea = random.Pick(RoamAreas);
 
                 SimCounters roundStart = counters.Snapshot();
 
@@ -688,6 +693,7 @@ public static class GameSimulator
         {
             EventBus.Unsubscribe(onTaken);
             EventBus.Unsubscribe(onMoved);
+            EventBus.Unsubscribe(onNpcState);
         }
 
         // ⑦ 母亲开门 + ⑧ 结局（顺序不能换，文档 5.5）。
@@ -718,6 +724,8 @@ public static class GameSimulator
             itemTouches = counters.itemTouches,
             forceTouches = counters.forceTouches,
             forceWarnings = counters.forceWarnings,
+            motherItemTouches = counters.motherItemTouches,
+            confusions = counters.confusions,
             actions = counters.actions
         };
 
@@ -786,6 +794,8 @@ public static class GameSimulator
 
                 ItemActionResult result = items.Touch(pick.itemId);
                 RecordTouch(result, counters);
+                if (result.status == ItemActionStatus.Success && pick.owner == ItemOwner.Mother)
+                    counters.motherItemTouches++;
                 if (trace != null) trace.Add("玩家：" + DescribeTouch(result, pick, ResidentId.Girl));
                 if (result.ChangedState) { touched = true; break; }
                 if (result.status == ItemActionStatus.ForceTouchWarned) break;
@@ -865,9 +875,16 @@ public static class GameSimulator
         return policy == SimPlayerPolicy.RoamAndWait || policy == SimPlayerPolicy.RoamAndInsist;
     }
 
+    private static bool IsFullGame(SimPlayerPolicy policy)
+    {
+        return policy == SimPlayerPolicy.FullGameAndInsist;
+    }
+
     private static bool Insists(SimPlayerPolicy policy)
     {
-        return policy == SimPlayerPolicy.StayAndInsist || policy == SimPlayerPolicy.RoamAndInsist;
+        return policy == SimPlayerPolicy.StayAndInsist
+            || policy == SimPlayerPolicy.RoamAndInsist
+            || policy == SimPlayerPolicy.FullGameAndInsist;
     }
 
     private class SimCounters
@@ -875,6 +892,8 @@ public static class GameSimulator
         public int itemTouches;
         public int forceTouches;
         public int forceWarnings;
+        public int motherItemTouches;
+        public int confusions;
         public int warmTakeBacks;
         public int coldTakeBacks;
         public int girlMoves;

@@ -1,0 +1,69 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bc1fb4989e5e4faab21231b8c58446f9, type: 3}
+  m_Name: ItemArt
+  m_EditorClassIdentifier: 
+  items:
+  - itemId: grandma_01
+    frontSprite: {fileID: 21300000, guid: 180dcfb3d9b4406fb097f7118f758eae, type: 3}
+    sideSprite: {fileID: 21300000, guid: 8f503441a7694aad920a7fd4ee685c2d, type: 3}
+    worldHeight: 1.7
+    hangFromTop: 1
+    sortingOrder: 0
+  - itemId: grandma_02
+    frontSprite: {fileID: 21300000, guid: 547986baf88f472ab3fdac79f320363f, type: 3}
+    sideSprite: {fileID: 21300000, guid: 5121d0d316b14ba781ff0a3826f07363, type: 3}
+    worldHeight: 0.9
+    hangFromTop: 0
+    sortingOrder: 0
+  - itemId: grandma_03
+    frontSprite: {fileID: 21300000, guid: 14b71566890a426894b38faf6284ef64, type: 3}
+    sideSprite: {fileID: 21300000, guid: 0d511328f1334eecae335f0eb4ca38f8, type: 3}
+    worldHeight: 0.65
+    hangFromTop: 0
+    sortingOrder: 0
+  - itemId: aunt_01
+    frontSprite: {fileID: 21300000, guid: a241b8ff718d4215818194ffd35cd734, type: 3}
+    sideSprite: {fileID: 21300000, guid: a71ade4e0e3748e687003862ebcc242b, type: 3}
+    worldHeight: 0.9
+    hangFromTop: 0
+    sortingOrder: 0
+  - itemId: aunt_02
+    frontSprite: {fileID: 21300000, guid: 9bcb28fc012649ac82bbb1f8a7856ef0, type: 3}
+    sideSprite: {fileID: 21300000, guid: 5ae4ea65be4d436fb92263f94c730a6c, type: 3}
+    worldHeight: 1
+    hangFromTop: 0
+    sortingOrder: 0
+  - itemId: aunt_03
+    frontSprite: {fileID: 21300000, guid: b87743dd8eb34d48be1b36604c8da913, type: 3}
+    sideSprite: {fileID: 21300000, guid: d8c3b9aa670c47aaa7c8cd47d5ad524e, type: 3}
+    worldHeight: 0.85
+    hangFromTop: 0
+    sortingOrder: 0
+  - itemId: mother_01
+    frontSprite: {fileID: 21300000, guid: 8a02de973df54f9cb17d44bde993780a, type: 3}
+    sideSprite: {fileID: 21300000, guid: 03baa16d2a394903a3bace14f1ec3cf6, type: 3}
+    worldHeight: 1.7
+    hangFromTop: 1
+    sortingOrder: 0
+  - itemId: mother_02
+    frontSprite: {fileID: 21300000, guid: f5f34471b2c6433796c2e30fbcfa3f18, type: 3}
+    sideSprite: {fileID: 21300000, guid: 5da9b075195548c0a7c84d8885c46402, type: 3}
+    worldHeight: 0.6
+    hangFromTop: 0
+    sortingOrder: 0
+  - itemId: mother_03
+    frontSprite: {fileID: 21300000, guid: e650f97ff93a468cbe391f31bf03139d, type: 3}
+    sideSprite: {fileID: 21300000, guid: d353cf90851d47b1be64183a1188d445, type: 3}
+    worldHeight: 0.75
+    hangFromTop: 0
+    sortingOrder: 0

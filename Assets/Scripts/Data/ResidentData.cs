@@ -13,6 +13,8 @@ public class ResidentData
     public int actionMax = 3;
 
     public NpcState state = NpcState.Normal;
+    public NpcVisualPose visualPose = NpcVisualPose.Default;
+    public bool facingLeft;
     public bool isHome = true;
     public bool isOut = false;
 

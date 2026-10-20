@@ -41,8 +41,8 @@ public class PlayerArtPlayModeTests
         Assert.AreEqual(2.2f, size.y, 0.02f, "主角立绘应该高 2.2 世界单位");
         Assert.Greater(size.x, 1f, "宽度应该按图片比例展开");
 
-        Assert.AreEqual(-2.9f, ResolveWorldBottom(player.bodyRenderer), 0.05f,
-            "立绘底边要落在脚底线上（root y=-2.4 下方 0.5）");
+        Assert.AreEqual(SceneLayoutMetrics.PlayerFootLineY, ResolveWorldBottom(player.bodyRenderer), 0.05f,
+            "立绘底边要贴合二楼背景地板");
         Assert.AreEqual(5, player.bodyRenderer.sortingOrder, "立绘要在门前面");
     }
 

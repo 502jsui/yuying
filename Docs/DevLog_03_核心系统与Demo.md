@@ -39,7 +39,7 @@ GameRoot（常驻，自动创建）
 | 回合调度器 | `GameFlow` `TurnRules` | 五阶段：场景状态 → 玩家输入 → 物品结算 → 住户行为 → 轮次+1；阶段间节奏 `phaseStepDelay` |
 | 不回家判定 | `TurnRules` | **先判有没有，再判是谁**（80% 有 1 人 / 20% 全员在家），判定在**住户行动结束之后** |
 | 物品系统 | `ItemSystem` `ItemData` `ItemPlacement` `PlacementPoint` | 物品池、放置规则（衣服只能挂 / 花盆可落地可叠 / 木箱只能落地…）、温度、二次触碰 |
-| NPC 行为 AI | `NpcSystem` `NpcAction` | 权重 35/25/20/20、行动次数、交流对象、小女孩只移动本区域物品 |
+| NPC 行为 AI | `NpcSystem` `NpcAction` | 权重 35/25/20/20、行动次数、交流对象、小女孩可在整个拼接场景移动物品 |
 | NPC 状态机 | `NpcStateRules` | 正常 / 出门行动 / 区域持续 / 疑惑 / 惊吓，含区域可用性与行动约束 |
 | 数值结算 | `StatSettlement` | 所有加减法与阈值集中一处（见下表） |
 | 玩家操作 | `PlayerController` `PromptOverlay` | 左右移动、E 触碰、可交互提示、二次触碰提示 |

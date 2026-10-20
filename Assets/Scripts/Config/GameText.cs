@@ -56,6 +56,9 @@ public class GameText : ScriptableObject
     [Header("物品独白（按 itemId）")]
     public List<ItemMonologue> itemMonologues = new List<ItemMonologue>();
 
+    [Header("三档结算演出")]
+    public List<EndingScript> endingScripts = new List<EndingScript>();
+
     // ------------------------------------------------------------------
     // 读取
     // ------------------------------------------------------------------
@@ -68,6 +71,10 @@ public class GameText : ScriptableObject
             text = CreateInstance<GameText>();
             text.name = "GameText (Runtime Default)";
             text.ApplyDefaults();
+        }
+        else
+        {
+            text.EnsureEndingDefaults();
         }
         return text;
     }
@@ -137,6 +144,8 @@ public class GameText : ScriptableObject
                 Mono("aunt_03", "外面脏得很，里面工具却排列的很整齐，这个包的主人会不会也很有反差？")
             };
         }
+
+        EnsureEndingDefaults();
     }
 
     private static ItemMonologue Mono(string itemId, string text)
@@ -194,5 +203,179 @@ public class GameText : ScriptableObject
             if (mono != null && mono.itemId == itemId && !string.IsNullOrEmpty(mono.text)) return mono.text;
         }
         return null;
+    }
+
+    /// <summary>取一套结局演出；资产缺这一档时补默认文案。</summary>
+    public EndingScript EndingScriptFor(EndingId id)
+    {
+        EnsureEndingDefaults();
+        for (int i = 0; i < endingScripts.Count; i++)
+        {
+            EndingScript script = endingScripts[i];
+            if (script != null && script.id == id) return script;
+        }
+        return null;
+    }
+
+    /// <summary>旧资产没有结局字段时自动补齐，不需要手工迁移。</summary>
+    public void EnsureEndingDefaults()
+    {
+        if (endingScripts == null) endingScripts = new List<EndingScript>();
+
+        EndingId[] ids =
+        {
+            EndingId.RainInTheCorridor,
+            EndingId.WhenSheWasLittle,
+            EndingId.BeforeSnowStops
+        };
+
+        for (int i = 0; i < ids.Length; i++)
+        {
+            EndingScript existing = null;
+            for (int j = 0; j < endingScripts.Count; j++)
+            {
+                EndingScript candidate = endingScripts[j];
+                if (candidate != null && candidate.id == ids[i]) { existing = candidate; break; }
+            }
+
+            if (existing == null || existing.lines == null || existing.lines.Count == 0)
+            {
+                if (existing == null)
+                {
+                    endingScripts.Add(DefaultEndingScript(ids[i]));
+                }
+                else
+                {
+                    EndingScript defaults = DefaultEndingScript(ids[i]);
+                    existing.title = defaults.title;
+                    existing.lines = defaults.lines;
+                }
+            }
+        }
+    }
+
+    private static EndingScript DefaultEndingScript(EndingId id)
+    {
+        switch (id)
+        {
+            case EndingId.RainInTheCorridor: return BuildRainInTheCorridor();
+            case EndingId.WhenSheWasLittle: return BuildWhenSheWasLittle();
+            case EndingId.BeforeSnowStops: return BuildBeforeSnowStops();
+            default: return new EndingScript { id = id, title = EndingRules.TitleOf(id) };
+        }
+    }
+
+    private static EndingScript BuildRainInTheCorridor()
+    {
+        return Script(EndingId.RainInTheCorridor,
+            Line("旁白", "楼道里最后一个人回家了。", 1.6f, EndingCue.RainHeavy),
+            Line("旁白", "门没有关严。", 1.6f, EndingCue.LightsOut),
+            Line("妈妈的声", "…… 你回去吧。", 1.6f),
+            Line("主人公", "妈 ....... 妈？", 0.8f),
+            Line("妈妈的声", "东西我明天给你拿。", 0.8f),
+            Line("妈妈的声", "明天。", 1.6f),
+            Line("旁白", "门里一直没有脚步声走开。", 1.6f, EndingCue.FocusMotherDoor),
+            Line("旁白", "门外也没有。", 1.6f),
+            Line("主人公", "妈 , 为什么不让我留下 ... 我不想走。", 0.8f),
+            Line("妈妈的声", "（忽然很轻）雨停了就好了。", 1.6f),
+            Line("旁白", "门里又亮了一点。她大概是在等一句话。", 1.6f),
+            Line("旁白", "没有人说。", 1.6f),
+            Line("旁白", "她没有开门。", 1.6f),
+            Line("旁白", "他也没有走。", 1.6f),
+            Line("旁白", "雨没有停。", 3f));
+    }
+
+    private static EndingScript BuildWhenSheWasLittle()
+    {
+        return Script(EndingId.WhenSheWasLittle,
+            Card("葬礼"),
+            Line("旁白", "葬礼上。", 1.6f, EndingCue.AllAtDoors),
+            Line("旁白", "她抬起头，看向走廊空着的那一头。", 1.6f),
+            Line("女孩", "（小声）哥哥，你怎么站那么远。", 1.6f),
+            Line("主人公", "……", 1.6f),
+            Line("女孩", "（自己接话）你不过来吗。", 1.6f),
+            Line("主人公", "……", 1.6f),
+            Line("女孩", "那我自己过去。", 1.6f),
+            Line("旁白", "她似乎能看见你", 1.6f),
+            Line("旁白", "但你并没有回答", 1.6f),
+            Card("三年后"),
+            Line("旁白", "院子里。她长高了，抬头往楼道看。", 1.6f, EndingCue.GirlOlder),
+            Line("女孩", "哥哥？", 1.6f),
+            Line("主人公", "……", 1.6f),
+            Line("女孩", "…… 你今天在啊。", 1.6f),
+            Card("又几年"),
+            Line("旁白", "楼空了一半。她回来搬东西，穿过楼道。", 1.6f, EndingCue.GirlOlder),
+            Line("女孩", "（走过时，头也没抬）我走了啊。", 1.6f),
+            Line("主人公", "……", 1.6f),
+            Line("旁白", "这一次她没有等回答。", 1.6f),
+            Card("搬走那天"),
+            Line("旁白", "楼下堆着箱子。灯坏了几盏。她站在楼道口，最后回头。", 1.6f, EndingCue.GirlLeaving),
+            Line("旁白", "她搬走的时候，回头看了一眼。", 1.6f),
+            Line("女孩", "（对空处）…… 我小时候是不是在这儿见过一个人。", 1.6f),
+            Line("主人公", "……", 1.6f),
+            Line("女孩", "（笑了一下）算了。", 1.6f),
+            Line("旁白", "她转身上车。", 1.6f, EndingCue.GirlAlone),
+            Line("旁白", "她没有再问。", 3f));
+    }
+
+    private static EndingScript BuildBeforeSnowStops()
+    {
+        return Script(EndingId.BeforeSnowStops,
+            Line("旁白", "雨小了。", 1.6f, EndingCue.DoorsOpen),
+            Line("旁白", "楼上楼下，门一扇一扇开了。", 1.6f),
+            Line("老婆婆", "好孩子 ... 安心吧，奶奶不会忘记你，这里不会忘记你，大胆的往前走吧", 1.6f),
+            Line("大叔", "（别过脸）东西别拿了。", 0.8f),
+            Line("大叔", "等你再回来的时候，我会再给你雕一个出来", 1.6f),
+            Line("旁白", "那把刻刀，他攥了一夜。", 1.6f),
+            Line("母亲", "（终于出声）我的小宝 ...... 我的小宝啊！", 1.6f),
+            Line("母亲", "你是不是要走了。", 1.6f),
+            Line("母亲", "没关系的，都没关系的。", 1.6f),
+            Line("母亲", "妈妈，妈妈会好好的，你放心。", 1.6f),
+            Line("女孩", "（从门后探出来）哥哥，你为什么这么凉啊。", 1.6f),
+            Line("旁白", "她说完就缩回去了。没有人怪她。", 1.6f, EndingCue.RainFadeOut),
+            Line("旁白", "走廊尽头亮了起来，不是灯。", 1.6f),
+            Line("旁白", "所有门都开着。所有人都站着，没有人开口，也没有人走开。", 1.6f),
+            Line("旁白", "他往那边走。这一步没有声音。", 1.6f, EndingCue.WalkToExit),
+            Line("旁白", "这一次没有人喊他回去。", 1.6f),
+            Line("旁白", "他一直走到走廊尽头，一次都没有回头。", 1.6f),
+            Line("旁白", "雪落下来，落在走廊上，没有声音。", 1.6f, EndingCue.SnowStart),
+            Line("旁白", "门一扇一扇，都没关。", 3f, EndingCue.FadeToWhite));
+    }
+
+    private static EndingScript Script(EndingId id, params EndingLine[] lines)
+    {
+        EndingScript script = new EndingScript
+        {
+            id = id,
+            title = EndingRules.TitleOf(id)
+        };
+        if (lines != null) script.lines.AddRange(lines);
+        return script;
+    }
+
+    private static EndingLine Card(string text)
+    {
+        EndingLine line = Line(null, null, 0.8f, EndingCue.TimeCard);
+        line.cueText = text;
+        line.cueSeconds = 2.4f;
+        return line;
+    }
+
+    private static EndingLine Line(
+        string speaker,
+        string text,
+        float pauseAfterSeconds,
+        EndingCue cue = EndingCue.None)
+    {
+        return new EndingLine
+        {
+            speaker = speaker,
+            text = text,
+            holdSeconds = 0f,
+            pauseAfterSeconds = pauseAfterSeconds,
+            cue = cue,
+            cueText = null,
+            cueSeconds = 0f
+        };
     }
 }

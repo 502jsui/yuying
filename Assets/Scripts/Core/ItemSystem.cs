@@ -192,6 +192,7 @@ public class ItemSystem
     public int EnsureSceneItems(AreaId area, int targetCount)
     {
         if (session == null || area == AreaId.None || targetCount <= 0) return 0;
+        if (area == AreaId.SecondFloor) return 0; // 二楼只放母亲物品，不做普通物品随机补货
 
         int current = GetSceneItems(area).Count;
         int placed = 0;
@@ -250,7 +251,7 @@ public class ItemSystem
 
     /// <summary>
     /// 住户「拿回东西」。有温度 → 暖意 +18 / 知晓 +15；没温度 → 只加知晓 +15。
-    /// 拿回后 item.isReturned = true，之后不会再被拿出来。
+    /// 拿回后物品回到物品池，之后仍可被再次拿出。
     /// </summary>
     public ItemActionResult Return(string itemId, ResidentId by)
     {

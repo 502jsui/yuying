@@ -80,6 +80,31 @@ public static class CharacterArtApplier
             EditorUtility.SetDirty(view);
         }
 
+        CharacterArtEntry sitting = config != null
+            ? config.ForResidentSitting(spec.id)
+            : CharacterArtConfig.DefaultSittingEntry(spec.id);
+        view.sittingSprite = sitting != null ? sitting.sprite : null;
+        view.sittingHeight = sitting != null ? sitting.height : view.sittingHeight;
+        view.sittingFootOffsetY = sitting != null ? sitting.footOffsetY : view.sittingFootOffsetY;
+        view.sittingSortingOrder = sitting != null ? sitting.sortingOrder : view.sittingSortingOrder;
+
+        CharacterArtEntry walking = config != null
+            ? config.ForResidentWalking(spec.id)
+            : CharacterArtConfig.DefaultActionEntry(spec.id);
+        view.walkingSprite = walking != null ? walking.sprite : null;
+        view.walkingHeight = walking != null ? walking.height : view.walkingHeight;
+        view.walkingFootOffsetY = walking != null ? walking.footOffsetY : view.walkingFootOffsetY;
+        view.walkingSortingOrder = walking != null ? walking.sortingOrder : view.walkingSortingOrder;
+
+        CharacterArtEntry talking = config != null
+            ? config.ForResidentTalking(spec.id)
+            : CharacterArtConfig.DefaultActionEntry(spec.id);
+        view.talkingSprite = talking != null ? talking.sprite : null;
+        view.talkingHeight = talking != null ? talking.height : view.talkingHeight;
+        view.talkingFootOffsetY = talking != null ? talking.footOffsetY : view.talkingFootOffsetY;
+        view.talkingSortingOrder = talking != null ? talking.sortingOrder : view.talkingSortingOrder;
+        EditorUtility.SetDirty(view);
+
         EditorUtility.SetDirty(body);
         return true;
     }

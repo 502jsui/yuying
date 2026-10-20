@@ -34,6 +34,7 @@ public class NpcRoundEndVisibilityTests
         while (load != null && !load.isDone) yield return null;
         yield return null;
         yield return null;
+        GameRoot.Instance.Config.absentRoundChance = 0f;
 
         IntroNarration intro = UnityEngine.Object.FindObjectOfType<IntroNarration>();
         if (intro != null) intro.RequestSkip();
@@ -94,11 +95,43 @@ public class NpcRoundEndVisibilityTests
         Assert.AreEqual(expectedCloses, closes.Count,
             "开过门的人回家时都该有关门声（不回家那位除外）。开门=" + opens.Count + " 关门=" + closes.Count
             + " 不回家=" + hasAbsent);
+
+        yield return WaitUntil(
+            delegate
+            {
+                return GameRoot.Instance.Session.round == 2
+                    && GameRoot.Instance.Flow.Phase == TurnPhase.PlayerInput;
+            },
+            10f);
+
+        AssertResidentAtOwnDoor(ResidentId.Grandma);
+        AssertResidentAtOwnDoor(ResidentId.Uncle);
+
+        AsyncOperation loadSecond = SceneManager.LoadSceneAsync("SecondFloor", LoadSceneMode.Single);
+        while (loadSecond != null && !loadSecond.isDone) yield return null;
+        yield return null;
+        yield return null;
+        AssertResidentAtOwnDoor(ResidentId.Girl);
     }
 
     private static IEnumerator WaitUntil(Func<bool> condition, float timeout)
     {
         float start = Time.realtimeSinceStartup;
         while (!condition() && Time.realtimeSinceStartup - start < timeout) yield return null;
+    }
+
+    private static void AssertResidentAtOwnDoor(ResidentId id)
+    {
+        AreaId expectedArea = id == ResidentId.Girl ? AreaId.SecondFloor : AreaId.FirstFloor;
+        ResidentView[] views = UnityEngine.Object.FindObjectsOfType<ResidentView>();
+        for (int i = 0; i < views.Length; i++)
+        {
+            ResidentView view = views[i];
+            if (view == null || view.id != id || view.area != expectedArea) continue;
+            Assert.AreEqual(expectedArea, view.data.currentArea, id + " 应回到自己家");
+            Assert.AreEqual(view.HomePosition.x, view.transform.position.x, 0.05f, id + " 应走到自己门口");
+            return;
+        }
+        Assert.Fail("找不到 " + id + " 的 " + expectedArea + " View");
     }
 }

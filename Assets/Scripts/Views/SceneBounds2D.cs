@@ -7,7 +7,7 @@ public class SceneBounds2D : MonoBehaviour
     public Transform target;
     public float minX = -16f;
     public float maxX = 16f;
-    public float fixedY = -2.4f;
+    public float fixedY = -3.0f;
 
     private void LateUpdate()
     {
